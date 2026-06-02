@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.chromium
     pkgs.nss
     pkgs.nspr
     pkgs.dbus
