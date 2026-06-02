@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import random
+import re
 import secrets
 import datetime
 import time
@@ -203,6 +204,11 @@ class TikTokStreakBot:
                 print(f"  [!] Could not find conversation with {friend_username}")
         except Exception as e:
             print(f"  [!] Error finding conversation: {e}")
+        tiktok_streak = await self._scrape_streak_from_tiktok()
+        if tiktok_streak and tiktok_streak > self.status.get("streak_count", 0):
+            self.status["streak_count"] = tiktok_streak
+            print(f"  [✓] Scraped real streak from TikTok: {tiktok_streak} days")
+
         print(f"  [~] Checking today's messages...")
         today_sent = await self._check_today_messages(sender_username)
         if today_sent:
@@ -230,6 +236,33 @@ class TikTokStreakBot:
         except Exception as e:
             print(f"  [✗] Failed to send message: {e}")
             return {"action": "failed", "reason": str(e)}
+
+    async def _scrape_streak_from_tiktok(self):
+        try:
+            page_text = await self.page.inner_text("body")
+            patterns = [
+                r'(\d+)\s*[- ]?day\s*streak',
+                r'streak[:\s]*(\d+)',
+                r'(\d+)\s*.\u064a\u0648\u0645',
+                r'\u0627\u0633\u062a\u0631\u064a\u0643[:\s]*(\d+)',
+            ]
+            for p in patterns:
+                match = re.search(p, page_text, re.IGNORECASE)
+                if match:
+                    num = int(match.group(1))
+                    if 1 <= num <= 9999:
+                        return num
+            fire_idx = page_text.find('\U0001f525')
+            if fire_idx >= 0:
+                chunk = page_text[max(0,fire_idx-10):fire_idx+30]
+                nums = re.findall(r'\d+', chunk)
+                if nums:
+                    num = int(nums[0])
+                    if 1 <= num <= 9999:
+                        return num
+        except Exception as e:
+            print(f"    [!] Streak scrape error: {e}")
+        return None
 
     async def _check_today_messages(self, username):
         today = datetime.datetime.now().strftime("%Y-%m-%d")
