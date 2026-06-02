@@ -15,7 +15,7 @@ from flask import (
     url_for, flash, session as flask_session, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-from github import Github, GithubException
+from github import Github, GithubException, Auth
 
 from streak_bot import TikTokStreakBot
 
@@ -42,7 +42,7 @@ USE_GITHUB = bool(GITHUB_TOKEN and GITHUB_REPO_NAME)
 # ============================================================
 def _get_github():
     if USE_GITHUB:
-        g = Github(GITHUB_TOKEN)
+        g = Github(auth=Auth.Token(GITHUB_TOKEN))
         return g.get_repo(GITHUB_REPO_NAME)
     return None
 
@@ -581,6 +581,81 @@ def api_update_config():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/send_test", methods=["POST"])
+@login_required
+def api_send_test():
+    """Send a single test message from this account to their partner."""
+    try:
+        if not ENCRYPTION_PASSWORD:
+            return jsonify({"success": False, "error": "ENCRYPTION_PASSWORD not configured"}), 500
+
+        data = request.get_json() or {}
+        custom_msg = data.get("message", "").strip()
+
+        config = read_config()
+        account_key = flask_session.get("account_key")
+        account = config.get("accounts", {}).get(account_key, {})
+
+        if not custom_msg:
+            import random as _random
+            mode = account.get("send_mode", "random")
+            pool = account.get("messages_pool", ["🔥"])
+            custom_stored = account.get("custom_message", "")
+            custom_msg = custom_stored if (mode == "custom" and custom_stored) else _random.choice(pool) if pool else "🔥"
+
+        friend = account.get("friend_username", "")
+        if not friend:
+            return jsonify({"success": False, "error": "Friend username not configured"}), 400
+
+        log_audit("test_send", flask_session.get("username", ""), get_client_ip(), f"msg={custom_msg}")
+
+        def run():
+            import asyncio as _asyncio
+            try:
+                bot = TikTokStreakBot()
+                creds = bot.load_credentials_from_env(account_key)
+                _asyncio.run(bot.check_and_send_message(
+                    creds["username"], creds["password"], friend, custom_msg
+                ))
+            except Exception as e:
+                print(f"[Test Send] Failed: {e}")
+
+        import threading as _threading
+        _threading.Thread(target=run, daemon=True).start()
+        return jsonify({"success": True, "message": f"Sending «{custom_msg}» to {friend}… check TikTok in ~30s"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/mark_sent", methods=["POST"])
+@login_required
+def api_mark_sent():
+    """Let a user manually mark themselves as having sent today."""
+    try:
+        import datetime as dt
+        account_key = flask_session.get("account_key")
+        status = read_status()
+        today = dt.datetime.now().strftime("%Y-%m-%d")
+
+        # Reset if it's a new day
+        if status.get("today", {}).get("date") != today:
+            status["today"] = {
+                "date": today,
+                "user_a_sent": False,
+                "user_b_sent": False,
+                "bot_intervened": False,
+                "bot_action": "none",
+            }
+
+        status["today"]["date"] = today
+        status["today"][f"{account_key}_sent"] = True
+        write_status(status)
+        log_audit("manual_mark_sent", flask_session.get("username", ""), get_client_ip())
+        return jsonify({"success": True, "status": status["today"]})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/audit")
 @login_required
 def api_audit():
@@ -651,10 +726,13 @@ def run_bot_scheduled():
             print(f"[Scheduler] Bot failed: {e}")
 
 schedule.every().day.at("23:45").do(run_bot_scheduled)
-threading.Thread(target=lambda: (
-    schedule.run_all(),
-    [time.sleep(30) for _ in iter(lambda: (schedule.run_pending(), False)[1], True)]
-), daemon=True).start()
+
+def _scheduler_loop():
+    while True:
+        schedule.run_pending()
+        time.sleep(30)
+
+threading.Thread(target=_scheduler_loop, daemon=True).start()
 
 
 if __name__ == "__main__":
