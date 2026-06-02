@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log In - TikTok Streak Bot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo .fire { font-size: 40px; }
+        .logo h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-top: 8px;
+        }
+        .logo p {
+            color: #888;
+            font-size: 14px;
+            font-weight: 400;
+            margin-top: 4px;
+        }
+        .card {
+            background: #141414;
+            border-radius: 16px;
+            padding: 32px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .card .subtitle {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #888;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            border-color: #fff;
+        }
+        .form-group input::placeholder { color: #555; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 999px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 4px;
+        }
+        .btn:hover { opacity: 0.9; }
+        .flash-msg {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #fff;
+        }
+        .flash-msg.danger { border-color: #ff4444; color: #ff4444; }
+        .flash-msg.success { border-color: #4caf50; color: #4caf50; }
+        .error-msg {
+            background: #1a1a1a;
+            border: 1px solid #ff4444;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #ff4444;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .footer a {
+            color: #888;
+            font-size: 13px;
+            text-decoration: none;
+        }
+        .footer a:hover { color: #fff; }
+        .footer .version {
+            color: #444;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <div class="fire">🔥</div>
+            <h1>TikTok Streak Bot</h1>
+            <p>Smart Streak Protection</p>
+        </div>
+
+        <div class="card">
+            <h2>Log In</h2>
+            <p class="subtitle">Enter your TikTok username and password</p>
+
+            {% with msgs = get_flashed_messages(with_categories=true) %}
+            {% if msgs %}
+            {% for cat, msg in msgs %}
+            <div class="flash-msg {{ cat }}">{{ msg }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% if error %}
+            <div class="error-msg">Wrong username or password</div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('login_page') }}">
+                <div class="form-group">
+                    <label>TikTok Username</label>
+                    <input type="text" name="username" placeholder="Your TikTok username" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label>TikTok Password</label>
+                    <input type="password" name="password" placeholder="Your TikTok password" required>
+                </div>
+                <button type="submit" class="btn">Log In</button>
+            </form>
+        </div>
+
+        <div class="footer">
+            <a href="{{ url_for('setup') }}">First time? Set up your account</a>
+            <div class="version">TikTok Streak Bot v1.0</div>
+        </div>
+    </div>
+</body>
+</html>
