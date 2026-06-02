@@ -1,0 +1,12 @@
+{
+  "streak_count": 140,
+  "last_update": "",
+  "today": {
+    "user_a_sent": false,
+    "user_b_sent": false,
+    "bot_intervened": false,
+    "bot_action": "none",
+    "date": ""
+  },
+  "history": []
+}
