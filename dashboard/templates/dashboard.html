@@ -304,6 +304,29 @@
             color: #888;
         }
         .info-row strong { color: #fff; font-weight: 500; }
+
+        .audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .audit-table th {
+            text-align: right;
+            padding: 8px 12px;
+            color: #666;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .audit-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #141414;
+            color: #aaa;
+        }
+        .audit-table tr:hover td { background: #0a0a0a; }
+        .audit-success { color: #4caf50; }
+        .audit-failure { color: #ff4444; }
+        .audit-locked { color: #ffa502; }
+        .audit-attempt { color: #888; }
+        .audit-action { color: #36a4eb; }
     </style>
 </head>
 <body>
@@ -336,6 +359,7 @@
         <div class="tab-bar">
             <button class="tab active" onclick="switchTab('dashboard-tab')">Dashboard</button>
             <button class="tab" onclick="switchTab('settings-tab')">Settings</button>
+            <button class="tab" onclick="switchTab('security-tab')">Security</button>
         </div>
 
         <!-- ==================== MAIN TAB ==================== -->
@@ -451,6 +475,26 @@
                     <div>Partner: <strong>{{ partner.get('tiktok_username', '') }}</strong></div>
                     <div>Run time: <strong>11:45 PM (Cairo)</strong></div>
                     <div>Last update: <strong>{{ (status.get('last_update', '')[:19]).replace('T', ' ') if status.get('last_update') else '—' }}</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SECURITY TAB ==================== -->
+        <div id="security-tab" class="tab-content">
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-title">Login Activity (Last 30)</div>
+                <div id="auditContainer">
+                    <div style="text-align:center; padding:20px; color:#888; font-size:13px;">Loading...</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Security Info</div>
+                <div style="font-size:12px; color:#888; line-height:1.8;">
+                    <div>🔒 Session: <strong style="color:#fff;">HttpOnly + SameSite Strict</strong></div>
+                    <div>⏱ Idle timeout: <strong style="color:#fff;">1 hour</strong> (auto-logout if inactive)</div>
+                    <div>🚫 Rate limit: <strong style="color:#fff;">5 failed attempts = 15 min IP block</strong></div>
+                    <div>🔐 Account lockout: <strong style="color:#fff;">10 failed attempts = 30 min lock</strong></div>
+                    <div>📝 All login attempts are logged here</div>
                 </div>
             </div>
         </div>
@@ -573,12 +617,46 @@
                 });
                 const d = await r.json();
                 if (d.success) {
-                    res.innerHTML = 'Settings saved';
+                    if (d.password_changed) {
+                        toast('Password changed! Redirecting to login...');
+                        setTimeout(() => { window.location.href = '/logout'; }, 1500);
+                    } else {
+                        res.innerHTML = 'Settings saved';
+                        toast('Settings updated');
+                    }
                     document.getElementById('settingsTikTokPassword').value = '';
-                    toast('Settings updated');
                 } else { res.innerHTML = d.error || 'Error'; }
             } catch(e) { res.innerHTML = e.message; }
         }
+
+        async function loadAudit() {
+            try {
+                const r = await fetch('/api/audit');
+                const d = await r.json();
+                const container = document.getElementById('auditContainer');
+                if (!d.entries || d.entries.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:#888; font-size:13px;">No activity recorded yet.</div>';
+                    return;
+                }
+                let html = '<table class="audit-table"><thead><tr><th>Time</th><th>Action</th><th>IP</th><th>Details</th></tr></thead><tbody>';
+                for (const e of d.entries) {
+                    const cls = e.action === 'login_success' ? 'audit-success' :
+                                e.action === 'login_failure' ? 'audit-failure' :
+                                e.action === 'account_locked' || e.action === 'rate_limited' ? 'audit-locked' :
+                                e.action === 'password_changed' ? 'audit-action' : 'audit-attempt';
+                    html += `<tr><td>${e.timestamp}</td><td class="${cls}">${e.action}</td><td>${e.ip}</td><td>${e.details || ''}</td></tr>`;
+                }
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch(e) {
+                document.getElementById('auditContainer').innerHTML = '<div style="text-align:center; padding:20px; color:#ff4444; font-size:13px;">Failed to load activity log.</div>';
+            }
+        }
+
+        // Load audit log when switching to security tab
+        document.querySelector('.tab[onclick*="security-tab"]').addEventListener('click', function() {
+            setTimeout(loadAudit, 100);
+        });
 
         setInterval(async () => {
             try { const r = await fetch('/api/status'); if (r.ok) window.location.reload(); } catch(e) {}
