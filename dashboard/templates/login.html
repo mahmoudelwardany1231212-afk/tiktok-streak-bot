@@ -82,6 +82,24 @@
             border-color: #fff;
         }
         .form-group input::placeholder { color: #555; }
+        .remember-row { margin-bottom: 8px; }
+        .remember-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #888;
+            cursor: pointer;
+            user-select: none;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        .remember-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #fff;
+            cursor: pointer;
+        }
         .btn {
             width: 100%;
             padding: 14px;
@@ -167,6 +185,13 @@
                 <div class="form-group">
                     <label>TikTok Password</label>
                     <input type="password" name="password" placeholder="Your TikTok password" required>
+                </div>
+                <div class="form-group remember-row">
+                    <label class="remember-label">
+                        <input type="checkbox" name="remember_me" checked>
+                        <span class="checkmark"></span>
+                        Remember me for 30 days
+                    </label>
                 </div>
                 <button type="submit" class="btn">Log In</button>
             </form>
