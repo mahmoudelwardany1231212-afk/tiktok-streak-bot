@@ -22,7 +22,7 @@ on:
       messages_pool:
         description: 'Message pool (comma-separated)'
         required: false
-        default: '🔥,❤️,ستريك 🔥,💪,✅'
+        default: '\U0001f525,\u2764\ufe0f,\u0633\u062a\u0631\u064a\u0643 \U0001f525,\U0001f4aa,\u2705'
 
 jobs:
   update:
@@ -33,21 +33,21 @@ jobs:
       - name: Update config
         run: |
           python -c "
-import json
-key = 'user_${{ inputs.account }}'
-with open('config.json') as f:
-    config = json.load(f)
-acct = config['accounts'].get(key, {})
-acct['bot_enabled'] = '${{ inputs.bot_enabled }}' == 'true'
-acct['send_mode'] = '${{ inputs.send_mode }}'
-acct['custom_message'] = '${{ inputs.custom_message }}'
-pool = '${{ inputs.messages_pool }}'.split(',')
-acct['messages_pool'] = [m.strip() for m in pool if m.strip()]
-config['accounts'][key] = acct
-with open('config.json', 'w') as f:
-    json.dump(config, f, indent=2, ensure_ascii=False)
-print(f'Account {key} updated!')
-"
+          import json
+          key = 'user_${{ inputs.account }}'
+          with open('config.json') as f:
+              config = json.load(f)
+          acct = config['accounts'].get(key, {})
+          acct['bot_enabled'] = '${{ inputs.bot_enabled }}' == 'true'
+          acct['send_mode'] = '${{ inputs.send_mode }}'
+          acct['custom_message'] = '${{ inputs.custom_message }}'
+          pool = '${{ inputs.messages_pool }}'.split(',')
+          acct['messages_pool'] = [m.strip() for m in pool if m.strip()]
+          config['accounts'][key] = acct
+          with open('config.json', 'w') as f:
+              json.dump(config, f, indent=2, ensure_ascii=False)
+          print(f'Account {key} updated!')
+          "
 
       - name: Commit config.json
         run: |
