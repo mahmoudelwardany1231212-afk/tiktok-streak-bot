@@ -173,6 +173,11 @@ class TikTokStreakBot:
             # Go directly to messages, skipping login page
             await self.page.goto("https://www.tiktok.com/messages", timeout=60000)
             await self.page.wait_for_timeout(3000)
+            
+            # Check if TikTok rejected the cookie and redirected to login
+            if "login" in self.page.url.lower():
+                raise Exception("Cookie login failed! The sessionid is expired or invalid.")
+                
             print(f"  [+] Logged in via cookie successfully.")
             return True
 
