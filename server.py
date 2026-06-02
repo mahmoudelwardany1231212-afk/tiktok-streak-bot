@@ -14,7 +14,7 @@ from github import Github, GithubException
 
 from streak_bot import TikTokStreakBot
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="dashboard/templates")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24).hex())
 
 CONFIG_PATH = Path("config.json")
