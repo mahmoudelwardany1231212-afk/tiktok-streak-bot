@@ -159,30 +159,43 @@ class TikTokStreakBot:
     async def login(self, username, password):
         if not self.page:
             await self._init_browser()
-        await self.page.goto("https://www.tiktok.com/login/phone-or-email", timeout=60000)
-        await self.page.wait_for_timeout(3000)
+        # Navigate directly to the email/username login tab
+        await self.page.goto("https://www.tiktok.com/login/phone-or-email/email", timeout=60000)
+        await self.page.wait_for_timeout(4000)
+        
+        # Try to click the "Log in with phone / email / username" option if we are on the main login screen
         try:
-            email_tab = self.page.locator("div[class*='tab']:has-text('Use phone / email')")
-            if await email_tab.count() > 0:
-                await email_tab.click()
+            btn = self.page.locator("div:has-text('Use phone / email / username')").last
+            if await btn.count() > 0:
+                await btn.click()
                 await self.page.wait_for_timeout(2000)
-        except Exception:
+            
+            # Switch to 'Log in with email or username' link if it's visible
+            email_link = self.page.locator("a:has-text('Log in with email or username')").first
+            if await email_link.count() > 0:
+                await email_link.click()
+                await self.page.wait_for_timeout(2000)
+        except:
             pass
+
         try:
-            await self.page.fill("input[name='username']", username)
+            # Robust selectors for username/email field
+            user_input = self.page.locator("input[name='username'], input[placeholder*='Email'], input[placeholder*='username'], input[type='text']").first
+            await user_input.fill(username)
             await self.page.wait_for_timeout(500)
-            await self.page.fill("input[type='password']", password)
+            
+            # Robust selector for password field
+            pass_input = self.page.locator("input[type='password']").first
+            await pass_input.fill(password)
             await self.page.wait_for_timeout(500)
-            await self.page.click("button[type='submit']")
-            await self.page.wait_for_timeout(5000)
-        except Exception:
-            try:
-                await self.page.fill("input[placeholder*='phone']", username)
-                await self.page.fill("input[placeholder*='password']", password)
-                await self.page.click("button[type='submit']")
-                await self.page.wait_for_timeout(5000)
-            except Exception as e:
-                raise Exception(f"Login failed: {e}")
+            
+            # Submit button
+            submit_btn = self.page.locator("button[type='submit'], button:has-text('Log in')").first
+            await submit_btn.click()
+            await self.page.wait_for_timeout(8000)
+        except Exception as e:
+            raise Exception(f"Login failed to locate input fields: {e}")
+            
         await self.page.wait_for_timeout(3000)
         current_url = self.page.url
         if "login" in current_url.lower() or "auth" in current_url.lower():
