@@ -2,7 +2,6 @@
   "accounts": {
     "user_a": {
       "tiktok_username": "",
-      "dashboard_password": "",
       "bot_enabled": true,
       "messages_pool": ["🔥", "❤️", "ستريك 🔥", "💪", "✅"],
       "send_mode": "random",
@@ -11,7 +10,6 @@
     },
     "user_b": {
       "tiktok_username": "",
-      "dashboard_password": "",
       "bot_enabled": true,
       "messages_pool": ["🌟", "🔥", "💯", "عاش يا صاحبي", "✅"],
       "send_mode": "random",
