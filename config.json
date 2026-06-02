@@ -12,7 +12,7 @@
         "✅",
         "test"
       ],
-      "send_mode": "random",
+      "send_mode": "custom",
       "custom_message": "test",
       "friend_username": "yassen_67i"
     },
