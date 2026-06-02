@@ -159,6 +159,24 @@ class TikTokStreakBot:
     async def login(self, username, password):
         if not self.page:
             await self._init_browser()
+            
+        # --- COOKIE LOGIN BYPASS (CAPTCHA SOLUTION) ---
+        if password.startswith("sessionid="):
+            print("  [~] Using session cookie bypass instead of password...")
+            session_id = password.replace("sessionid=", "").strip()
+            await self.context.add_cookies([{
+                "name": "sessionid",
+                "value": session_id,
+                "domain": ".tiktok.com",
+                "path": "/"
+            }])
+            # Go directly to messages, skipping login page
+            await self.page.goto("https://www.tiktok.com/messages", timeout=60000)
+            await self.page.wait_for_timeout(3000)
+            print(f"  [+] Logged in via cookie successfully.")
+            return True
+
+        # --- NORMAL PASSWORD LOGIN ---
         # Navigate directly to the email/username login tab
         await self.page.goto("https://www.tiktok.com/login/phone-or-email/email", timeout=60000)
         await self.page.wait_for_timeout(4000)
