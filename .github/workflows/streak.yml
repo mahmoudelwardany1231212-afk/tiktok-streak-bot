@@ -48,8 +48,10 @@ jobs:
       - name: Run TikTok Streak Bot
         env:
           ENCRYPTION_PASSWORD: ${{ secrets.ENCRYPTION_PASSWORD }}
+          USER_A_CREDS: ${{ secrets.USER_A_CREDS }}
+          USER_B_CREDS: ${{ secrets.USER_B_CREDS }}
         run: |
-          python streak_bot.py 2>&1
+          python streak_bot.py
 
       - name: Commit and push updates
         env:
@@ -61,7 +63,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "🤖 Auto-update streak status [$(date +'%Y-%m-%d %H:%M')]"
+            git commit -m "Auto-update streak status [$(date +'%Y-%m-%d %H:%M')]"
             git push origin HEAD:main
           fi
 
@@ -74,20 +76,3 @@ jobs:
             status.json
             config.json
           retention-days: 7
-
-      - name: Verify streak status
-        if: always()
-        run: |
-          echo "=== Streak Bot Run Complete ==="
-          python -c "
-import json
-try:
-    with open('status.json') as f:
-        s = json.load(f)
-    print(f'Streak Count: {s.get(\"streak_count\", \"?\")}')
-    print(f'Today: A sent={s.get(\"today\", {}).get(\"user_a_sent\", \"?\")}, '
-          f'B sent={s.get(\"today\", {}).get(\"user_b_sent\", \"?\")}')
-    print(f'Bot intervened: {s.get(\"today\", {}).get(\"bot_intervened\", \"?\")}')
-except Exception as e:
-    print(f'Could not read status: {e}')
-"
