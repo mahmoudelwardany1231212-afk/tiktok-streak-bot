@@ -1,0 +1,62 @@
+name: Update Bot Settings
+
+on:
+  workflow_dispatch:
+    inputs:
+      account:
+        description: 'Account (a / b)'
+        required: true
+        default: 'a'
+      bot_enabled:
+        description: 'Enable bot? (true/false)'
+        required: true
+        default: 'true'
+      send_mode:
+        description: 'Send mode (random/always/custom)'
+        required: false
+        default: 'random'
+      custom_message:
+        description: 'Custom message (if mode=custom)'
+        required: false
+        default: ''
+      messages_pool:
+        description: 'Message pool (comma-separated)'
+        required: false
+        default: '🔥,❤️,ستريك 🔥,💪,✅'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update config
+        run: |
+          python -c "
+import json
+key = 'user_${{ inputs.account }}'
+with open('config.json') as f:
+    config = json.load(f)
+acct = config['accounts'].get(key, {})
+acct['bot_enabled'] = '${{ inputs.bot_enabled }}' == 'true'
+acct['send_mode'] = '${{ inputs.send_mode }}'
+acct['custom_message'] = '${{ inputs.custom_message }}'
+pool = '${{ inputs.messages_pool }}'.split(',')
+acct['messages_pool'] = [m.strip() for m in pool if m.strip()]
+config['accounts'][key] = acct
+with open('config.json', 'w') as f:
+    json.dump(config, f, indent=2, ensure_ascii=False)
+print(f'Account {key} updated!')
+"
+
+      - name: Commit config.json
+        run: |
+          git config --global user.name 'TikTok Streak Bot'
+          git config --global user.email 'bot@tiktok-streak.local'
+          git add config.json
+          if git diff --staged --quiet; then
+            echo 'No changes'
+          else
+            git commit -m 'Update bot settings'
+            git push origin HEAD:main
+          fi
