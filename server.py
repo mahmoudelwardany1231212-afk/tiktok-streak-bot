@@ -5,7 +5,7 @@ import asyncio
 from pathlib import Path
 from functools import wraps
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from flask import (
     Flask, render_template, request, redirect,
@@ -19,6 +19,11 @@ from streak_bot import TikTokStreakBot
 app = Flask(__name__, template_folder="dashboard/templates")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24).hex())
 app.permanent_session_lifetime = timedelta(days=30)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Strict",
+    SESSION_COOKIE_SECURE=os.environ.get("FORCE_HTTPS", "0") == "1",
+)
 
 CONFIG_PATH = Path("config.json")
 STATUS_PATH = Path("status.json")
@@ -107,6 +112,117 @@ def _write_local(path, data):
 
 
 # ============================================================
+# Security
+# ============================================================
+RATE_LIMIT = {}
+RATE_LIMIT_MAX = 5
+RATE_LIMIT_WINDOW = timedelta(minutes=15)
+RATE_LIMIT_BLOCK = timedelta(minutes=15)
+
+ACCOUNT_LOCKOUT = {}
+ACCOUNT_LOCKOUT_MAX = 10
+ACCOUNT_LOCKOUT_DURATION = timedelta(minutes=30)
+
+IDLE_TIMEOUT = timedelta(hours=1)
+
+AUDIT_PATH = Path("audit.json")
+MAX_AUDIT_ENTRIES = 100
+
+
+def get_client_ip():
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def is_rate_limited(ip):
+    now = datetime.now()
+    entry = RATE_LIMIT.get(ip)
+    if entry and entry.get("locked_until"):
+        if now < entry["locked_until"]:
+            remaining = int((entry["locked_until"] - now).total_seconds() // 60)
+            return True, remaining
+        RATE_LIMIT.pop(ip, None)
+    if entry and now - entry["first_attempt"] > RATE_LIMIT_WINDOW:
+        RATE_LIMIT.pop(ip, None)
+    return False, 0
+
+
+def record_failed_attempt(ip):
+    now = datetime.now()
+    entry = RATE_LIMIT.get(ip)
+    if not entry or now - entry["first_attempt"] > RATE_LIMIT_WINDOW:
+        RATE_LIMIT[ip] = {"attempts": 1, "first_attempt": now, "locked_until": None}
+    else:
+        entry["attempts"] += 1
+        if entry["attempts"] >= RATE_LIMIT_MAX:
+            entry["locked_until"] = now + RATE_LIMIT_BLOCK
+
+
+def reset_rate_limit(ip):
+    RATE_LIMIT.pop(ip, None)
+
+
+def is_account_locked(username):
+    now = datetime.now()
+    entry = ACCOUNT_LOCKOUT.get(username)
+    if entry and entry.get("locked_until"):
+        if now < entry["locked_until"]:
+            remaining = int((entry["locked_until"] - now).total_seconds() // 60)
+            return True, remaining
+        ACCOUNT_LOCKOUT.pop(username, None)
+    return False, 0
+
+
+def record_failed_login(username):
+    now = datetime.now()
+    entry = ACCOUNT_LOCKOUT.get(username)
+    if not entry:
+        ACCOUNT_LOCKOUT[username] = {"attempts": 1, "locked_until": None}
+    else:
+        entry["attempts"] += 1
+        if entry["attempts"] >= ACCOUNT_LOCKOUT_MAX:
+            entry["locked_until"] = now + ACCOUNT_LOCKOUT_DURATION
+
+
+def reset_account_lock(username):
+    ACCOUNT_LOCKOUT.pop(username, None)
+
+
+def read_audit():
+    try:
+        with open(AUDIT_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def write_audit(log):
+    with open(AUDIT_PATH, "w", encoding="utf-8") as f:
+        json.dump(log, f, ensure_ascii=False, indent=2)
+
+
+def log_audit(action, username, ip, details=""):
+    log = read_audit()
+    log.append({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "action": action,
+        "username": username,
+        "ip": ip,
+        "details": details,
+    })
+    if len(log) > MAX_AUDIT_ENTRIES:
+        log = log[-MAX_AUDIT_ENTRIES:]
+    write_audit(log)
+
+
+def get_user_audit(username, limit=20):
+    log = read_audit()
+    return [e for e in log if e["username"] == username][-limit:]
+
+
+# ============================================================
 # Config / Status
 # ============================================================
 def read_config():
@@ -180,6 +296,18 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if "logged_in" not in flask_session:
             return redirect(url_for("login_page"))
+        if not flask_session.get("permanent", False):
+            last_active = flask_session.get("last_active")
+            if last_active:
+                try:
+                    last = datetime.fromisoformat(last_active)
+                    if datetime.now() - last > IDLE_TIMEOUT:
+                        flask_session.clear()
+                        flash("Session expired due to inactivity. Please login again.", "info")
+                        return redirect(url_for("login_page"))
+                except Exception:
+                    pass
+        flask_session["last_active"] = datetime.now().isoformat()
         return f(*args, **kwargs)
     return decorated
 
@@ -320,23 +448,52 @@ def login_page():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
         remember = request.form.get("remember_me") == "on"
+        ip = get_client_ip()
 
+        # Rate limit check
+        limited, remaining = is_rate_limited(ip)
+        if limited:
+            log_audit("rate_limited", username, ip, f"IP blocked for {remaining} min")
+            flash(f"Too many attempts. Try again in {remaining} minutes.", "danger")
+            return render_template("login.html", error=True)
+
+        # Account lockout check
+        locked, rem = is_account_locked(username)
+        if locked:
+            log_audit("account_locked", username, ip, f"Locked for {rem} min")
+            flash(f"Account locked due to too many failed attempts. Try again in {rem} minutes.", "danger")
+            return render_template("login.html", error=True)
+
+        log_audit("login_attempt", username, ip)
+
+        found = False
         for account_key, account_data in config.get("accounts", {}).items():
             if account_data.get("tiktok_username") == username:
+                found = True
                 stored_hash = account_data.get("dashboard_password_hash", "")
                 if stored_hash and check_password_hash(stored_hash, password):
+                    reset_rate_limit(ip)
+                    reset_account_lock(username)
                     flask_session.permanent = remember
                     flask_session["logged_in"] = True
                     flask_session["username"] = username
                     flask_session["account_key"] = account_key
+                    flask_session["last_active"] = datetime.now().isoformat()
+                    log_audit("login_success", username, ip)
                     flash("Login successful!", "success")
                     return redirect(url_for("dashboard"))
                 else:
+                    record_failed_attempt(ip)
+                    record_failed_login(username)
+                    log_audit("login_failure", username, ip, "Wrong password")
                     flash("Wrong password!", "danger")
                     return render_template("login.html", error=True)
 
-        flash(f"Account '{username}' not found!", "danger")
-        return render_template("login.html", error=True)
+        if not found:
+            record_failed_attempt(ip)
+            log_audit("login_failure", username, ip, "Account not found")
+            flash(f"Account '{username}' not found!", "danger")
+            return render_template("login.html", error=True)
 
     return render_template("login.html", error=False)
 
@@ -409,14 +566,17 @@ def api_update_config():
             account["friend_username"] = data["friend_username"].strip()
 
         # Handle TikTok password change — update both the GitHub Secret and the dash hash
+        password_changed = False
         if "tiktok_password" in data and data["tiktok_password"].strip():
             new_pw = data["tiktok_password"].strip()
             username = account.get("tiktok_username", "")
             save_credential_to_secret(account_key, username, new_pw)
             account["dashboard_password_hash"] = generate_password_hash(new_pw)
+            password_changed = True
+            log_audit("password_changed", username, get_client_ip())
 
         write_config(config)
-        return jsonify({"success": True, "account": {
+        return jsonify({"success": True, "password_changed": password_changed, "account": {
             "username": account.get("tiktok_username", ""),
             "bot_enabled": account.get("bot_enabled", True),
             "send_mode": account.get("send_mode", "random"),
@@ -426,6 +586,14 @@ def api_update_config():
         }})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/audit")
+@login_required
+def api_audit():
+    username = flask_session.get("username", "")
+    entries = get_user_audit(username, limit=30)
+    return jsonify({"entries": entries})
 
 
 @app.route("/api/trigger_bot", methods=["POST"])
@@ -470,6 +638,9 @@ def api_run_bot_local():
 
 @app.route("/logout")
 def logout():
+    username = flask_session.get("username", "unknown")
+    ip = get_client_ip()
+    log_audit("logout", username, ip)
     flask_session.clear()
     flash("Logged out", "info")
     return redirect(url_for("login_page"))
