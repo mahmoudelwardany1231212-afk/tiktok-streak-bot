@@ -106,8 +106,8 @@
         <div class="streak-banner">
             <div class="count">{{ streak_count }}</div>
             <div class="label">Day Streak</div>
-            <div class="target">Target: 600 days ({{ "%.1f"|format((streak_count / 600) * 100) }}%)</div>
-            <div class="progress-bar"><div class="progress-fill" style="width: {{ (streak_count / 600) * 100 }}%"></div></div>
+            <div class="target">Target: {{ streak_target }} days ({{ "%.1f"|format((streak_count / streak_target) * 100) }}%)</div>
+            <div class="progress-bar"><div class="progress-fill" style="width: {{ (streak_count / streak_target) * 100 }}%"></div></div>
         </div>
         <div class="tab-bar">
             <button class="tab active" onclick="switchTab('dashboard-tab')">Dashboard</button>

@@ -496,13 +496,19 @@ def dashboard():
     partner_key = "user_b" if account_key == "user_a" else "user_a"
     partner = config.get("accounts", {}).get(partner_key, {})
 
+    streak_count = status.get("streak_count", 0)
+    target = 200
+    while target <= streak_count:
+        target *= 2
+
     return render_template(
         "dashboard.html",
         account=account,
         account_key=account_key,
         partner=partner,
         status=status,
-        streak_count=status.get("streak_count", 0),
+        streak_count=streak_count,
+        streak_target=target,
         today=status.get("today", {}),
     )
 
