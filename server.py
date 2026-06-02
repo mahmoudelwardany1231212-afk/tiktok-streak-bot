@@ -5,6 +5,8 @@ import asyncio
 from pathlib import Path
 from functools import wraps
 
+from datetime import timedelta
+
 from flask import (
     Flask, render_template, request, redirect,
     url_for, flash, session as flask_session, jsonify
@@ -16,6 +18,7 @@ from streak_bot import TikTokStreakBot
 
 app = Flask(__name__, template_folder="dashboard/templates")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24).hex())
+app.permanent_session_lifetime = timedelta(days=30)
 
 CONFIG_PATH = Path("config.json")
 STATUS_PATH = Path("status.json")
@@ -316,11 +319,13 @@ def login_page():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
+        remember = request.form.get("remember_me") == "on"
 
         for account_key, account_data in config.get("accounts", {}).items():
             if account_data.get("tiktok_username") == username:
                 stored_hash = account_data.get("dashboard_password_hash", "")
                 if stored_hash and check_password_hash(stored_hash, password):
+                    flask_session.permanent = remember
                     flask_session["logged_in"] = True
                     flask_session["username"] = username
                     flask_session["account_key"] = account_key
