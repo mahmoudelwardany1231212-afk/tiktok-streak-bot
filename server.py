@@ -2,6 +2,9 @@ import os
 import json
 import base64
 import asyncio
+import schedule
+import time
+import threading
 from pathlib import Path
 from functools import wraps
 
@@ -72,7 +75,6 @@ def _write_repo_file(path, data, message="Update via dashboard"):
 
 
 def _set_repo_secret(secret_name, secret_value):
-    """Store a secret in GitHub Secrets (never in repo files)."""
     repo = _get_github()
     if not repo:
         return False
@@ -254,10 +256,9 @@ def write_status(data):
 
 
 # ============================================================
-# Secure credential storage  (GitHub Secrets only — NEVER in repo)
+# Secure credential storage
 # ============================================================
 def save_credential_to_secret(account_key, tiktok_username, tiktok_password):
-    """Encrypt TikTok credentials and store as GitHub Secret."""
     bot = TikTokStreakBot()
     encrypted = bot.encrypt_credentials(
         {"username": tiktok_username, "password": tiktok_password},
@@ -274,7 +275,6 @@ def save_credential_to_secret(account_key, tiktok_username, tiktok_password):
 
 
 def cleanup_legacy_enc_files():
-    """Remove any .enc files from the repo (they should be secrets, not files)."""
     if not USE_GITHUB:
         return
     for key in ["user_a", "user_b"]:
@@ -332,11 +332,9 @@ def setup():
     a = accts.get("user_a", {})
     b = accts.get("user_b", {})
 
-    # Detect which account is missing
     missing_a = not a.get("tiktok_username")
     missing_b = not b.get("tiktok_username")
 
-    # If both exist, redirect
     if not missing_a and not missing_b:
         if "logged_in" not in flask_session:
             return redirect(url_for("login_page"))
@@ -355,7 +353,6 @@ def setup():
         if not friend_username:
             errors.append("Friend's TikTok Username is required")
 
-        # Determine account key
         if missing_a and missing_b:
             account_key = "user_a"
         elif missing_a:
@@ -363,7 +360,6 @@ def setup():
         else:
             account_key = "user_b"
 
-        # Validate friend match (only on second setup)
         if account_key == "user_b":
             other = accts.get("user_a", {})
             if other.get("tiktok_username") != friend_username:
@@ -371,7 +367,6 @@ def setup():
             if other.get("friend_username") != tiktok_username:
                 errors.append(f"The first account set their friend as {other.get('friend_username')}, not {tiktok_username}")
         elif account_key == "user_a" and not missing_b:
-            # user_a is missing but user_b exists (edge case — user_a was deleted)
             other = accts.get("user_b", {})
             if other.get("tiktok_username") != friend_username:
                 errors.append(f"Friend's username should be {other.get('tiktok_username')} (the existing account)")
@@ -396,10 +391,8 @@ def setup():
                                    b_username=b.get("tiktok_username", ""))
 
         try:
-            # Store TikTok credentials as GitHub Secret (encrypted)
             save_credential_to_secret(account_key, tiktok_username, tiktok_password)
 
-            # config.json stores only non-sensitive data
             config["accounts"][account_key] = {
                 "tiktok_username": tiktok_username,
                 "dashboard_password_hash": generate_password_hash(tiktok_password),
@@ -416,7 +409,6 @@ def setup():
             account_label = "Account 1" if account_key == "user_a" else "Account 2"
             flash(f"{account_label} configured! TikTok password encrypted and stored as GitHub Secret.", "success")
 
-            # If the other account is still missing, show setup again for the next user
             config = read_config()
             recheck_a = not config.get("accounts", {}).get("user_a", {}).get("tiktok_username")
             recheck_b = not config.get("accounts", {}).get("user_b", {}).get("tiktok_username")
@@ -450,14 +442,12 @@ def login_page():
         remember = request.form.get("remember_me") == "on"
         ip = get_client_ip()
 
-        # Rate limit check
         limited, remaining = is_rate_limited(ip)
         if limited:
             log_audit("rate_limited", username, ip, f"IP blocked for {remaining} min")
             flash(f"Too many attempts. Try again in {remaining} minutes.", "danger")
             return render_template("login.html", error=True)
 
-        # Account lockout check
         locked, rem = is_account_locked(username)
         if locked:
             log_audit("account_locked", username, ip, f"Locked for {rem} min")
@@ -565,7 +555,6 @@ def api_update_config():
         if "friend_username" in data and data["friend_username"].strip():
             account["friend_username"] = data["friend_username"].strip()
 
-        # Handle TikTok password change — update both the GitHub Secret and the dash hash
         password_changed = False
         if "tiktok_password" in data and data["tiktok_password"].strip():
             new_pw = data["tiktok_password"].strip()
@@ -599,19 +588,18 @@ def api_audit():
 @app.route("/api/trigger_bot", methods=["POST"])
 @login_required
 def api_trigger_bot():
-    try:
-        if USE_GITHUB:
-            repo = _get_github()
-            if repo:
-                try:
-                    workflow = repo.get_workflow("streak.yml")
-                    workflow.create_dispatch(repo.default_branch)
-                    return jsonify({"success": True, "message": "Bot triggered via GitHub Actions! Check Actions tab."})
-                except Exception:
-                    pass
-        return jsonify({"success": False, "message": "GitHub trigger unavailable"}), 400
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    ip = get_client_ip()
+    log_audit("manual_trigger", flask_session.get("username", ""), ip)
+    if not ENCRYPTION_PASSWORD:
+        return jsonify({"success": False, "message": "الباسورد مشفرة مش موجودة"}), 500
+    def run():
+        try:
+            bot = TikTokStreakBot()
+            asyncio.run(bot.run_smart(use_env=False))
+        except Exception as e:
+            print(f"Bot failed: {e}")
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"success": True, "message": "البوت شغال!"})
 
 
 @app.route("/api/run_bot_local", methods=["POST"])
@@ -620,7 +608,6 @@ def api_run_bot_local():
     try:
         if not ENCRYPTION_PASSWORD:
             return jsonify({"success": False, "error": "ENCRYPTION_PASSWORD not configured"}), 500
-        import threading
 
         def run_bot_thread():
             try:
@@ -644,6 +631,26 @@ def logout():
     flask_session.clear()
     flash("Logged out", "info")
     return redirect(url_for("login_page"))
+
+
+# ============================================================
+# Scheduled bot — runs daily at 11:45 PM Cairo
+# ============================================================
+def run_bot_scheduled():
+    with app.app_context():
+        print(f"[Scheduler] Running bot at {datetime.now()}")
+        try:
+            bot = TikTokStreakBot()
+            asyncio.run(bot.run_smart(use_env=False))
+            print(f"[Scheduler] Bot finished successfully")
+        except Exception as e:
+            print(f"[Scheduler] Bot failed: {e}")
+
+schedule.every().day.at("23:45").do(run_bot_scheduled)
+threading.Thread(target=lambda: (
+    schedule.run_all(),
+    [time.sleep(30) for _ in iter(lambda: (schedule.run_pending(), False)[1], True)]
+), daemon=True).start()
 
 
 if __name__ == "__main__":
