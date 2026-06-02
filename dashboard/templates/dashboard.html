@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TikTok Streak Bot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #0a0a0a;
+            border-bottom: 1px solid #1a1a1a;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .navbar .brand {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+        .navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 13px;
+            color: #888;
+        }
+        .navbar .user-info a {
+            color: #888;
+            text-decoration: none;
+            padding: 6px 16px;
+            border: 1px solid #2a2a2a;
+            border-radius: 999px;
+            transition: 0.2s;
+            font-size: 12px;
+        }
+        .navbar .user-info a:hover { border-color: #fff; color: #fff; }
+        .container { max-width: 920px; margin: 0 auto; padding: 24px 16px; }
+
+        .streak-banner {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .streak-banner .count {
+            font-size: 72px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+        .streak-banner .label {
+            font-size: 15px;
+            color: #888;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+        .streak-banner .target {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .streak-banner .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #1a1a1a;
+            border-radius: 2px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+        .streak-banner .progress-fill {
+            height: 100%;
+            background: #fff;
+            border-radius: 2px;
+            transition: width 0.5s;
+        }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+        @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+        .card {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .card-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 14px;
+        }
+        .today-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .status-item {
+            background: #141414;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .status-item .emoji { font-size: 22px; }
+        .status-item .name {
+            font-size: 11px;
+            color: #888;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+        .status-item .status {
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .status-done { color: #4caf50; }
+        .status-pending { color: #888; }
+        .section { margin-bottom: 14px; }
+        .section:last-child { margin-bottom: 0; }
+        .section label {
+            display: block;
+            font-size: 11px;
+            font-weight: 500;
+            color: #888;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-wrap { display: flex; align-items: center; gap: 12px; }
+        .toggle {
+            width: 44px;
+            height: 24px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: 0.2s;
+            border: none;
+        }
+        .toggle.active { background: #4caf50; }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            top: 3px;
+            right: 3px;
+            transition: 0.2s;
+        }
+        .toggle.active::after { right: 23px; }
+        .toggle-status { font-size: 13px; font-weight: 600; }
+
+        select, input[type="text"], input[type="password"], textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: 0.2s;
+        }
+        select:focus, input:focus, textarea:focus { border-color: #fff; }
+        select option { background: #141414; color: #fff; }
+        textarea { min-height: 70px; resize: vertical; }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-primary { background: #fff; color: #000; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary {
+            background: transparent;
+            color: #888;
+            border: 1px solid #2a2a2a;
+        }
+        .btn-secondary:hover { border-color: #fff; color: #fff; }
+        .btn-sm { padding: 6px 16px; font-size: 12px; }
+
+        .messages-pool { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .msg-tag {
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 999px;
+            padding: 5px 12px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .msg-tag .remove { cursor: pointer; color: #555; font-size: 14px; }
+        .msg-tag .remove:hover { color: #ff4444; }
+        .add-msg-row { display: flex; gap: 6px; margin-top: 6px; }
+        .add-msg-row input { flex: 1; }
+
+        .flash-msg {
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+        .flash-msg.success { border-color: #4caf50; color: #4caf50; }
+        .flash-msg.danger { border-color: #ff4444; color: #ff4444; }
+        .flash-msg.info { border-color: #888; color: #888; }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #fff;
+            color: #000;
+            padding: 14px 24px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: 0.3s;
+            z-index: 1000;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { background: #ff4444; color: #fff; }
+
+        .last-run {
+            font-size: 12px;
+            color: #444;
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #1a1a1a;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 999px;
+            padding: 4px;
+        }
+        .tab {
+            padding: 8px 24px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #888;
+            border: none;
+            background: none;
+            transition: 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .tab.active { background: #fff; color: #000; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 600px) { .settings-grid { grid-template-columns: 1fr; } }
+        .save-note { font-size: 11px; color: #555; margin-top: 4px; }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 13px;
+            color: #888;
+        }
+        .info-row strong { color: #fff; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand">🔥 TikTok Streak Bot</div>
+        <div class="user-info">
+            <span>{{ account.get('tiktok_username', '') }}</span>
+            <a href="{{ url_for('logout') }}">Log Out</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}
+        {% for cat, msg in msgs %}
+        <div class="flash-msg {{ cat }}">{{ msg }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="streak-banner">
+            <div class="count">{{ streak_count }}</div>
+            <div class="label">Day Streak</div>
+            <div class="target">Target: 600 days ({{ "%.1f"|format((streak_count / 600) * 100) }}%)</div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ (streak_count / 600) * 100 }}%"></div>
+            </div>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab active" onclick="switchTab('dashboard-tab')">Dashboard</button>
+            <button class="tab" onclick="switchTab('settings-tab')">Settings</button>
+        </div>
+
+        <!-- ==================== MAIN TAB ==================== -->
+        <div id="dashboard-tab" class="tab-content active">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Today's Status</div>
+                    <div class="today-grid">
+                        <div class="status-item">
+                            <div class="emoji">👤</div>
+                            <div class="name">Your Message</div>
+                            <div class="status {% if today.get('user_a_sent') %}status-done{% else %}status-pending{% endif %}">
+                                {{ 'Sent' if today.get('user_a_sent') else 'Not yet' }}
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="emoji">👥</div>
+                            <div class="name">{{ partner.get('tiktok_username', 'Partner') }}</div>
+                            <div class="status {% if today.get('user_b_sent') %}status-done{% else %}status-pending{% endif %}">
+                                {{ 'Replied' if today.get('user_b_sent') else 'Waiting' }}
+                            </div>
+                        </div>
+                    </div>
+                    {% if today.get('bot_intervened') %}
+                    <div style="margin-top:10px; text-align:center; color:#888; font-size:12px;">
+                        🤖 Bot acted:
+                        {{ 'Sent on your behalf' if today.get('bot_action') == 'sent_from_a' else 'Sent for your partner' if today.get('bot_action') == 'sent_from_b' else 'Sent for both' if today.get('bot_action') == 'sent_from_both' else today.get('bot_action') }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Bot Control</div>
+                    <div class="section">
+                        <label>Your Bot</label>
+                        <div class="toggle-wrap">
+                            <button class="toggle {% if account.get('bot_enabled', True) %}active{% endif %}"
+                                    onclick="toggleBot()" id="botToggle"></button>
+                            <span class="toggle-status" id="botStatus">
+                                {{ 'On' if account.get('bot_enabled', True) else 'Off' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="section" style="margin-top:12px;">
+                        <label>Manual Run</label>
+                        <button class="btn btn-primary btn-sm" onclick="triggerBot()" id="triggerBtn">Run Now</button>
+                        <div id="triggerResult" style="margin-top:6px; font-size:12px; color:#888;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Message Settings (Your Account)</div>
+                <div class="grid" style="margin-bottom:0;">
+                    <div class="section">
+                        <label>Send Mode</label>
+                        <select id="sendMode" onchange="onModeChange()">
+                            <option value="random" {% if account.get('send_mode') == 'random' %}selected{% endif %}>Random from pool</option>
+                            <option value="custom" {% if account.get('send_mode') == 'custom' %}selected{% endif %}>Custom message</option>
+                        </select>
+                    </div>
+                    <div class="section" id="customMsgSection" style="{% if account.get('send_mode') != 'custom' %}display:none{% endif %}">
+                        <label>Custom Message</label>
+                        <input type="text" id="customMessage" value="{{ account.get('custom_message', '') }}"
+                               placeholder="Type your message" onchange="updateConfig()">
+                    </div>
+                </div>
+                <div class="section" id="poolSection" style="{% if account.get('send_mode') == 'custom' %}display:none{% endif %}">
+                    <label>Message Pool</label>
+                    <div class="messages-pool" id="messagesPool">
+                        {% for msg in account.get('messages_pool', []) %}
+                        <div class="msg-tag">{{ msg }} <span class="remove" onclick="removeMsg('{{ msg|replace("'","\\'") }}')">×</span></div>
+                        {% endfor %}
+                    </div>
+                    <div class="add-msg-row">
+                        <input type="text" id="newMessage" placeholder="New message" onkeydown="if(event.key==='Enter')addMsg()">
+                        <button class="btn btn-secondary btn-sm" onclick="addMsg()">+ Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SETTINGS TAB ==================== -->
+        <div id="settings-tab" class="tab-content">
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-title">Account</div>
+                <div class="settings-grid">
+                    <div class="section">
+                        <label>TikTok Username</label>
+                        <input type="text" value="{{ account.get('tiktok_username', '') }}" disabled style="opacity:0.5;">
+                        <div class="save-note">Cannot be changed here</div>
+                    </div>
+                    <div class="section">
+                        <label>New TikTok Password (leave blank to keep)</label>
+                        <input type="password" id="settingsTikTokPassword" placeholder="New TikTok password">
+                        <div class="save-note">This updates your dashboard password too</div>
+                    </div>
+                </div>
+                <div class="settings-grid">
+                    <div class="section">
+                        <label>Streak Partner Username</label>
+                        <input type="text" id="settingsFriend" value="{{ account.get('friend_username', '') }}" placeholder="Partner's username">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveSettings()" style="margin-top:8px;">Save Settings</button>
+                <div id="settingsResult" style="margin-top:8px; font-size:12px; color:#888;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Account Info</div>
+                <div class="info-row">
+                    <div>User: <strong>{{ account.get('tiktok_username', '') }}</strong></div>
+                    <div>Partner: <strong>{{ partner.get('tiktok_username', '') }}</strong></div>
+                    <div>Run time: <strong>11:45 PM (Cairo)</strong></div>
+                    <div>Last update: <strong>{{ (status.get('last_update', '')[:19]).replace('T', ' ') if status.get('last_update') else '—' }}</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="last-run">
+            Last updated: {{ status.get('last_update', 'Never') }}
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        function toast(msg, type='success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.className = 'toast ' + type + ' show';
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.querySelector(`.tab[onclick*="${id}"]`).classList.add('active');
+        }
+
+        function onModeChange() {
+            const mode = document.getElementById('sendMode').value;
+            document.getElementById('customMsgSection').style.display = mode === 'custom' ? 'block' : 'none';
+            document.getElementById('poolSection').style.display = mode === 'custom' ? 'none' : 'block';
+            updateConfig();
+        }
+
+        async function updateConfig() {
+            const cfg = {
+                bot_enabled: document.getElementById('botToggle').classList.contains('active'),
+                send_mode: document.getElementById('sendMode').value,
+                custom_message: document.getElementById('customMessage').value,
+            };
+            try {
+                const r = await fetch('/api/update_config', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(cfg)
+                });
+                const d = await r.json();
+                if (d.success) toast('Saved');
+                else toast(d.error || 'Error', 'error');
+            } catch(e) { toast('Failed', 'error'); }
+        }
+
+        async function toggleBot() {
+            document.getElementById('botToggle').classList.toggle('active');
+            const s = document.getElementById('botStatus');
+            s.textContent = document.getElementById('botToggle').classList.contains('active') ? 'On' : 'Off';
+            await updateConfig();
+        }
+
+        async function triggerBot() {
+            const btn = document.getElementById('triggerBtn');
+            const res = document.getElementById('triggerResult');
+            btn.disabled = true; btn.innerHTML = '<span class="loading"></span> Running...'; res.innerHTML = '';
+            try {
+                const r = await fetch('/api/trigger_bot', { method: 'POST' });
+                const d = await r.json();
+                if (d.success) { res.innerHTML = 'Triggered! Check Actions tab.'; toast('Bot triggered'); }
+                else { res.innerHTML = d.message || d.error || 'Failed'; }
+            } catch(e) { res.innerHTML = e.message; }
+            btn.disabled = false; btn.innerHTML = 'Run Now';
+        }
+
+        async function addMsg() {
+            const input = document.getElementById('newMessage');
+            const msg = input.value.trim(); if (!msg) return;
+            try {
+                const r = await fetch('/api/status'); const data = await r.json();
+                const msgs = data.account.messages_pool || []; msgs.push(msg);
+                const r2 = await fetch('/api/update_config', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ messages_pool: msgs })
+                });
+                const d2 = await r2.json();
+                if (d2.success) {
+                    const pool = document.getElementById('messagesPool');
+                    const tag = document.createElement('div'); tag.className = 'msg-tag';
+                    tag.innerHTML = `${msg} <span class="remove" onclick="removeMsg('${msg.replace(/'/g, "\\'")}')">×</span>`;
+                    pool.appendChild(tag); input.value = ''; toast('Added');
+                }
+            } catch(e) { toast(e.message, 'error'); }
+        }
+
+        async function removeMsg(msg) {
+            try {
+                const r = await fetch('/api/status'); const data = await r.json();
+                let msgs = data.account.messages_pool || [];
+                msgs = msgs.filter(m => m !== msg);
+                const r2 = await fetch('/api/update_config', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ messages_pool: msgs })
+                });
+                if ((await r2.json()).success) {
+                    const pool = document.getElementById('messagesPool');
+                    for (const tag of pool.children) {
+                        if (tag.textContent.replace('×','').trim() === msg) { tag.remove(); break; }
+                    }
+                    toast('Removed');
+                }
+            } catch(e) { toast(e.message, 'error'); }
+        }
+
+        async function saveSettings() {
+            const res = document.getElementById('settingsResult');
+            const data = {};
+            const tkPw = document.getElementById('settingsTikTokPassword').value.trim();
+            const friend = document.getElementById('settingsFriend').value.trim();
+            if (tkPw) data.tiktok_password = tkPw;
+            if (friend) data.friend_username = friend;
+            if (!tkPw && !friend) { res.innerHTML = 'Nothing changed'; return; }
+            try {
+                const r = await fetch('/api/update_config', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    res.innerHTML = 'Settings saved';
+                    document.getElementById('settingsTikTokPassword').value = '';
+                    toast('Settings updated');
+                } else { res.innerHTML = d.error || 'Error'; }
+            } catch(e) { res.innerHTML = e.message; }
+        }
+
+        setInterval(async () => {
+            try { const r = await fetch('/api/status'); if (r.ok) window.location.reload(); } catch(e) {}
+        }, 60000);
+    </script>
+</body>
+</html>
