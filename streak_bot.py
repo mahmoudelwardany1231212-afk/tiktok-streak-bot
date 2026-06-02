@@ -111,16 +111,23 @@ class TikTokStreakBot:
     # PLAYWRIGHT BROWSER
     # ============================================================
     async def _init_browser(self):
+        import shutil
         from playwright.async_api import async_playwright
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(
+        chromium_path = shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
+        launch_kwargs = dict(
             headless=True,
             args=[
                 "--no-sandbox",
                 "--disable-blink-features=AutomationControlled",
                 "--disable-dev-shm-usage",
+                "--disable-setuid-sandbox",
+                "--single-process",
             ]
         )
+        if chromium_path:
+            launch_kwargs["executable_path"] = chromium_path
+        self.browser = await self.playwright.chromium.launch(**launch_kwargs)
         self.context = await self.browser.new_context(
             viewport={"width": 1280, "height": 720},
             user_agent=(
