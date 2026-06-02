@@ -93,21 +93,19 @@
     <nav class="navbar">
         <div class="brand">🔥 TikTok Streak Bot</div>
         <div class="user-info">
-            <span>{{ account.get('tiktok_username', '') }}</span>
-            <a href="{{ url_for('logout') }}">Log Out</a>
+            <span>_drwardany</span>
+            <a href="/logout">Log Out</a>
         </div>
     </nav>
     <div class="container">
-        {% with msgs = get_flashed_messages(with_categories=true) %}
-        {% if msgs %}{% for cat, msg in msgs %}
-        <div class="flash-msg {{ cat }}">{{ msg }}</div>
-        {% endfor %}{% endif %}
-        {% endwith %}
+        
+        
+        
         <div class="streak-banner">
-            <div class="count">{{ streak_count }}</div>
+            <div class="count">140</div>
             <div class="label">Day Streak</div>
-            <div class="target">Target: {{ streak_target }} days ({{ "%.1f"|format((streak_count / streak_target) * 100) }}%)</div>
-            <div class="progress-bar"><div class="progress-fill" id="progressFill" data-pct="{{ (streak_count / streak_target) * 100 }}"></div></div>
+            <div class="target">Target: 200 days (70.0%)</div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" data-pct="70.0"></div></div>
         </div>
         <div class="tab-bar">
             <button class="tab active" onclick="switchTab('dashboard-tab')">Dashboard</button>
@@ -119,25 +117,23 @@
                 <div class="card">
                     <div class="card-title">Today's Status</div>
                     <div class="today-grid">
-                        {% set my_key = account_key + '_sent' %}
-                        {% set partner_key = ('user_b' if account_key == 'user_a' else 'user_a') + '_sent' %}
+                        
+                        
                         <div class="status-item">
                             <div class="emoji">👤</div>
                             <div class="name">Your Message</div>
-                            <div class="status {% if today.get(my_key) %}status-done{% else %}status-pending{% endif %}" id="myStatus">{{ 'Sent ✓' if today.get(my_key) else 'Not yet' }}</div>
-                            {% if not today.get(my_key) %}
-                            <button class="btn btn-secondary btn-sm" style="margin-top:8px; font-size:11px; padding:4px 10px;" onclick="markSent()" id="markSentBtn">I sent today ✓</button>
-                            {% endif %}
+                            <div class="status status-done" id="myStatus">Sent ✓</div>
+                            
                         </div>
-                        <div class="status-item"><div class="emoji">👥</div><div class="name">{{ partner.get('tiktok_username', 'Partner') }}</div><div class="status {% if today.get(partner_key) %}status-done{% else %}status-pending{% endif %}">{{ 'Sent ✓' if today.get(partner_key) else 'Waiting' }}</div></div>
+                        <div class="status-item"><div class="emoji">👥</div><div class="name">yassen_67i</div><div class="status status-pending">Waiting</div></div>
                     </div>
-                    {% if today.get('bot_intervened') %}<div style="margin-top:10px; text-align:center; color:#888; font-size:12px;">🤖 Bot acted: {{ 'Sent on your behalf' if today.get('bot_action') == 'sent_from_a' else 'Sent for your partner' if today.get('bot_action') == 'sent_from_b' else 'Sent for both' if today.get('bot_action') == 'sent_from_both' else today.get('bot_action') }}</div>{% endif %}
+                    
                 </div>
                 <div class="card">
                     <div class="card-title">Bot Control</div>
                     <div class="section">
                         <label>Your Bot</label>
-                        <div class="toggle-wrap"><button class="toggle {% if account.get('bot_enabled', True) %}active{% endif %}" onclick="toggleBot()" id="botToggle"></button><span class="toggle-status" id="botStatus">{{ 'On' if account.get('bot_enabled', True) else 'Off' }}</span></div>
+                        <div class="toggle-wrap"><button class="toggle active" onclick="toggleBot()" id="botToggle"></button><span class="toggle-status" id="botStatus">On</span></div>
                     </div>
                     <div class="section" style="margin-top:12px;">
                         <label>Manual Run</label>
@@ -149,10 +145,10 @@
             <div class="card">
                 <div class="card-title">Message Settings (Your Account)</div>
                 <div class="grid" style="margin-bottom:0;">
-                    <div class="section"><label>Send Mode</label><select id="sendMode" onchange="onModeChange()"><option value="random" {% if account.get('send_mode') == 'random' %}selected{% endif %}>Random from pool</option><option value="custom" {% if account.get('send_mode') == 'custom' %}selected{% endif %}>Custom message</option></select></div>
-                    <div class="section" id="customMsgSection"><label>Custom Message</label><input type="text" id="customMessage" value="{{ account.get('custom_message', '') }}" placeholder="Type your message" onchange="updateConfig()"></div>
+                    <div class="section"><label>Send Mode</label><select id="sendMode" onchange="onModeChange()"><option value="random" selected>Random from pool</option><option value="custom" >Custom message</option></select></div>
+                    <div class="section" id="customMsgSection"><label>Custom Message</label><input type="text" id="customMessage" value="test" placeholder="Type your message" onchange="updateConfig()"></div>
                 </div>
-                <div class="section" id="poolSection"><label>Message Pool</label><div class="messages-pool" id="messagesPool">{% for msg in account.get('messages_pool', []) %}<div class="msg-tag">{{ msg }} <span class="remove" onclick="removeMsg(this.parentNode, '{{ msg|replace("'","\\'") }}')">x</span></div>{% endfor %}</div><div class="add-msg-row"><input type="text" id="newMessage" placeholder="New message" onkeydown="if(event.key==='Enter')addMsg()"><button class="btn btn-secondary btn-sm" onclick="addMsg()">+ Add</button></div></div>
+                <div class="section" id="poolSection"><label>Message Pool</label><div class="messages-pool" id="messagesPool"><div class="msg-tag">🔥 <span class="remove" onclick="removeMsg(this.parentNode, '🔥')">x</span></div><div class="msg-tag">❤️ <span class="remove" onclick="removeMsg(this.parentNode, '❤️')">x</span></div><div class="msg-tag">ستريك 🔥 <span class="remove" onclick="removeMsg(this.parentNode, 'ستريك 🔥')">x</span></div><div class="msg-tag">💪 <span class="remove" onclick="removeMsg(this.parentNode, '💪')">x</span></div><div class="msg-tag">✅ <span class="remove" onclick="removeMsg(this.parentNode, '✅')">x</span></div><div class="msg-tag">test <span class="remove" onclick="removeMsg(this.parentNode, 'test')">x</span></div></div><div class="add-msg-row"><input type="text" id="newMessage" placeholder="New message" onkeydown="if(event.key==='Enter')addMsg()"><button class="btn btn-secondary btn-sm" onclick="addMsg()">+ Add</button></div></div>
                 <div class="section" style="margin-top:14px; padding-top:14px; border-top:1px solid #1a1a1a;">
                     <label>Test Send</label>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -167,23 +163,23 @@
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-title">Account</div>
                 <div class="settings-grid">
-                    <div class="section"><label>TikTok Username</label><input type="text" value="{{ account.get('tiktok_username', '') }}" disabled style="opacity:0.5;"><div class="save-note">Cannot be changed here</div></div>
+                    <div class="section"><label>TikTok Username</label><input type="text" value="_drwardany" disabled style="opacity:0.5;"><div class="save-note">Cannot be changed here</div></div>
                     <div class="section"><label>New TikTok Password (leave blank to keep)</label><input type="password" id="settingsTikTokPassword" placeholder="New TikTok password"><div class="save-note">This updates your dashboard password too</div></div>
                 </div>
-                <div class="settings-grid"><div class="section"><label>Streak Partner Username</label><input type="text" id="settingsFriend" value="{{ account.get('friend_username', '') }}" placeholder="Partner's username"></div></div>
+                <div class="settings-grid"><div class="section"><label>Streak Partner Username</label><input type="text" id="settingsFriend" value="yassen_67i" placeholder="Partner's username"></div></div>
                 <button class="btn btn-primary btn-sm" onclick="saveSettings()" style="margin-top:8px;">Save Settings</button>
                 <div id="settingsResult" style="margin-top:8px; font-size:12px; color:#888;"></div>
             </div>
             <div class="card">
                 <div class="card-title">Account Info</div>
-                <div class="info-row"><div>User: <strong>{{ account.get('tiktok_username', '') }}</strong></div><div>Partner: <strong>{{ partner.get('tiktok_username', '') }}</strong></div><div>Run time: <strong>11:45 PM (Cairo)</strong></div><div>Last update: <strong>{{ (status.get('last_update', '')[:19]).replace('T', ' ') if status.get('last_update') else '—' }}</strong></div></div>
+                <div class="info-row"><div>User: <strong>_drwardany</strong></div><div>Partner: <strong>yassen_67i</strong></div><div>Run time: <strong>11:45 PM (Cairo)</strong></div><div>Last update: <strong>—</strong></div></div>
             </div>
         </div>
         <div id="security-tab" class="tab-content">
             <div class="card" style="margin-bottom:16px;"><div class="card-title">Login Activity (Last 30)</div><div id="auditContainer"><div style="text-align:center; padding:20px; color:#888; font-size:13px;">Loading...</div></div></div>
             <div class="card"><div class="card-title">Security Info</div><div style="font-size:12px; color:#888; line-height:1.8;"><div>🔒 Session: <strong style="color:#fff;">HttpOnly + SameSite Strict</strong></div><div>⏱ Idle timeout: <strong style="color:#fff;">1 hour</strong></div><div>🚫 Rate limit: <strong style="color:#fff;">5 failed = 15 min IP block</strong></div><div>🔐 Account lockout: <strong style="color:#fff;">10 failed = 30 min lock</strong></div></div></div>
         </div>
-        <div class="last-run">Last updated: {{ status.get('last_update', 'Never') }}</div>
+        <div class="last-run">Last updated: </div>
     </div>
     <div class="toast" id="toast"></div>
     <script>
@@ -467,8 +463,8 @@
         }
 
         // ── Auto-refresh status every 30s ───────────────────────────────
-        const MY_KEY = '{{ account_key }}_sent';
-        const PARTNER_KEY = '{{ "user_b_sent" if account_key == "user_a" else "user_a_sent" }}';
+        const MY_KEY = 'user_a_sent';
+        const PARTNER_KEY = 'user_b_sent';
 
         setInterval(async () => {
             try {

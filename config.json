@@ -2,7 +2,7 @@
   "accounts": {
     "user_a": {
       "tiktok_username": "_drwardany",
-      "dashboard_password_hash": "scrypt:32768:8:1$BVG2jXg3SWcZZbwR$4aed10b6270c3af4e05e4d1b1433441818d12152d0e49bed57e9b0f609466da6f6d787c85ca14a3cc6be62af9e00ea24c154b43c801290d8436b2856efd60e85",
+      "dashboard_password_hash": "scrypt:32768:8:1$cuDE8o15vrOkRDyS$d80bb254a938c941d32434bfd2e9170816ad8c3c35eaafa06eb46a88010ea55b231dcfc3caa5718194e72c09cf809a883aa54ece55976745c0e006497f48d41a",
       "bot_enabled": true,
       "messages_pool": [
         "🔥",

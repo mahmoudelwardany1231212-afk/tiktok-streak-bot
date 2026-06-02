@@ -264,8 +264,13 @@ def save_credential_to_secret(account_key, tiktok_username, tiktok_password):
         {"username": tiktok_username, "password": tiktok_password},
         ENCRYPTION_PASSWORD
     )
-    # Always save locally so the bot can run even without env vars
-    _write_local(Path("accounts") / f"{account_key}.enc", encrypted)
+    # FIX: Write the encrypted JSON string directly — do NOT json.dump() a string
+    # (that would double-encode it and break decryption)
+    accounts_dir = Path("accounts")
+    accounts_dir.mkdir(exist_ok=True)
+    filepath = accounts_dir / f"{account_key}.enc"
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(encrypted)
     # Also save to GitHub Secrets if possible
     if USE_GITHUB:
         _set_repo_secret(f"{account_key.upper()}_CREDS", encrypted)
@@ -637,7 +642,7 @@ def api_mark_sent():
         status = read_status()
         today = dt.datetime.now().strftime("%Y-%m-%d")
 
-        # Reset if it's a new day
+        # Initialize today's entry if it's a new day or missing
         if status.get("today", {}).get("date") != today:
             status["today"] = {
                 "date": today,
@@ -646,8 +651,14 @@ def api_mark_sent():
                 "bot_intervened": False,
                 "bot_action": "none",
             }
+        else:
+            # Ensure all fields exist even on same day
+            status["today"].setdefault("user_a_sent", False)
+            status["today"].setdefault("user_b_sent", False)
+            status["today"].setdefault("bot_intervened", False)
+            status["today"].setdefault("bot_action", "none")
 
-        status["today"]["date"] = today
+        # Mark only this account as sent — preserve partner's status
         status["today"][f"{account_key}_sent"] = True
         write_status(status)
         log_audit("manual_mark_sent", flask_session.get("username", ""), get_client_ip())

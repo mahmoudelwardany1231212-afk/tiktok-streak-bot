@@ -64,7 +64,14 @@ class TikTokStreakBot:
 
     def decrypt_credentials(self, encrypted_json: str, password: str) -> dict:
         try:
-            payload = json.loads(encrypted_json)
+            # Handle double-encoded JSON (legacy bug fix)
+            if isinstance(encrypted_json, dict):
+                payload = encrypted_json
+            else:
+                payload = json.loads(encrypted_json)
+                # If the result is still a string, it was double-encoded
+                if isinstance(payload, str):
+                    payload = json.loads(payload)
             salt = base64.b64decode(payload["salt"])
             data = payload["data"].encode()
             key = self._derive_key(password, salt)
@@ -186,52 +193,103 @@ class TikTokStreakBot:
     # ============================================================
     # CHECK & SEND MESSAGE
     # ============================================================
-    async def check_and_send_message(self, sender_username, sender_password, friend_username, message):
+    async def check_and_send_message(self, sender_username, sender_password, friend_username, message,
+                                     already_sent_in_status=False):
+        """
+        already_sent_in_status: if True, skip sending (user already sent manually today).
+        """
         print(f"  [~] Logging in as {sender_username}...")
         await self.login(sender_username, sender_password)
+
+        # --- Scrape streak count from profile/chat ---
         print(f"  [~] Navigating to messages...")
         await self.page.goto("https://www.tiktok.com/messages", timeout=30000)
         await self.page.wait_for_timeout(4000)
-        try:
-            await self.page.wait_for_selector("div[class*='message'], div[class*='dialog']", timeout=10000)
-        except Exception:
-            pass
+
         print(f"  [~] Finding conversation with {friend_username}...")
+        opened = await self._open_conversation(friend_username)
+
+        if opened:
+            # Scrape streak count from the conversation
+            tiktok_streak = await self._scrape_streak_from_tiktok()
+            if tiktok_streak and tiktok_streak > self.status.get("streak_count", 0):
+                self.status["streak_count"] = tiktok_streak
+                print(f"  [✓] Scraped real streak from TikTok: {tiktok_streak} days")
+
+        # Check if already sent today (via status.json — reliable)
+        if already_sent_in_status:
+            print(f"  [✓] Already marked as sent today in status. Skipping.")
+            return {"action": "skipped", "reason": "already_sent"}
+
+        # Secondary check: look at the actual message timestamps in the chat
+        print(f"  [~] Checking today's messages...")
+        if opened:
+            today_sent = await self._check_today_messages_in_chat(sender_username)
+            if today_sent:
+                print(f"  [✓] Message already sent today from {sender_username}. Skipping.")
+                return {"action": "skipped", "reason": "already_sent"}
+
+        print(f"  [~] Sending message: {message}")
+        result = await self._send_message(message)
+        return result
+
+    async def _open_conversation(self, friend_username):
+        """Try multiple strategies to open the DM conversation with friend_username."""
         try:
+            # Wait for the message list to appear
+            try:
+                await self.page.wait_for_selector(
+                    "[class*='conversation'], [class*='message-list'], [class*='inbox']",
+                    timeout=10000
+                )
+            except Exception:
+                pass
+
+            # Strategy 1: link containing username
             conversation = self.page.locator(f"a[href*='{friend_username}']").first
-            if await conversation.count() == 0:
-                conversation = self.page.locator(f"div[class*='dialog']:has-text('{friend_username}')").first
-            if await conversation.count() == 0:
-                conversation = self.page.locator(f"div[class*='item']:has-text('{friend_username}')").first
             if await conversation.count() > 0:
                 await conversation.click()
                 await self.page.wait_for_timeout(3000)
-                print(f"  [~] Conversation opened.")
-            else:
-                print(f"  [!] Could not find conversation with {friend_username}")
+                print(f"  [✓] Conversation opened via link.")
+                return True
+
+            # Strategy 2: any element containing the username text
+            conversation = self.page.locator(f"[class*='conversation']:has-text('{friend_username}')").first
+            if await conversation.count() == 0:
+                conversation = self.page.locator(f"[class*='inbox']:has-text('{friend_username}')").first
+            if await conversation.count() == 0:
+                conversation = self.page.locator(f"li:has-text('{friend_username}')").first
+            if await conversation.count() > 0:
+                await conversation.click()
+                await self.page.wait_for_timeout(3000)
+                print(f"  [✓] Conversation opened via text match.")
+                return True
+
+            # Strategy 3: navigate directly to DM URL
+            await self.page.goto(f"https://www.tiktok.com/messages?username={friend_username}", timeout=20000)
+            await self.page.wait_for_timeout(3000)
+            print(f"  [~] Navigated to DM URL for {friend_username}")
+            return True
+
         except Exception as e:
             print(f"  [!] Error finding conversation: {e}")
-        tiktok_streak = await self._scrape_streak_from_tiktok()
-        if tiktok_streak and tiktok_streak > self.status.get("streak_count", 0):
-            self.status["streak_count"] = tiktok_streak
-            print(f"  [✓] Scraped real streak from TikTok: {tiktok_streak} days")
+            return False
 
-        print(f"  [~] Checking today's messages...")
-        today_sent = await self._check_today_messages(sender_username)
-        if today_sent:
-            print(f"  [✓] Message already sent today from {sender_username}. Skipping.")
-            return {"action": "skipped", "reason": "already_sent"}
-        print(f"  [~] Sending message: {message}")
+    async def _send_message(self, message):
+        """Send a message in the currently open conversation."""
         try:
+            # Try contenteditable div first (TikTok's primary input)
             textarea = self.page.locator("div[contenteditable='true']").first
             if await textarea.count() == 0:
                 textarea = self.page.locator("textarea").first
             if await textarea.count() == 0:
                 textarea = self.page.locator("input[type='text']").first
+
             if await textarea.count() > 0:
                 await textarea.click()
                 await self.page.wait_for_timeout(500)
-                await textarea.fill(message)
+                # Use type instead of fill for contenteditable
+                await textarea.type(message, delay=50)
                 await self.page.wait_for_timeout(1000)
                 await self.page.keyboard.press("Enter")
                 await self.page.wait_for_timeout(2000)
@@ -245,6 +303,7 @@ class TikTokStreakBot:
             return {"action": "failed", "reason": str(e)}
 
     async def _scrape_streak_from_tiktok(self):
+        """Scrape the streak count from the TikTok messages page."""
         try:
             page_text = await self.page.inner_text("body")
             patterns = [
@@ -259,9 +318,10 @@ class TikTokStreakBot:
                     num = int(match.group(1))
                     if 1 <= num <= 9999:
                         return num
+            # Look for fire emoji + adjacent number (common TikTok streak display)
             fire_idx = page_text.find('\U0001f525')
             if fire_idx >= 0:
-                chunk = page_text[max(0,fire_idx-10):fire_idx+30]
+                chunk = page_text[max(0, fire_idx - 10):fire_idx + 30]
                 nums = re.findall(r'\d+', chunk)
                 if nums:
                     num = int(nums[0])
@@ -271,19 +331,47 @@ class TikTokStreakBot:
             print(f"    [!] Streak scrape error: {e}")
         return None
 
-    async def _check_today_messages(self, username):
+    async def _check_today_messages_in_chat(self, sender_username):
+        """
+        Check whether the sender already sent a message today by reading
+        the actual message timestamps visible in the open chat window.
+        Returns True if we're confident a message was already sent today.
+        """
         today = datetime.datetime.now().strftime("%Y-%m-%d")
+        today_alt = datetime.datetime.now().strftime("%m/%d/%Y")
+        today_short = datetime.datetime.now().strftime("%-m/%-d")  # e.g. 6/2
+        now = datetime.datetime.now()
+
         try:
-            page_text = await self.page.inner_text("body")
-            if today in page_text:
-                print(f"    Today's date found in conversation.")
-                return True
-            recent_text = page_text[-2000:] if len(page_text) > 2000 else page_text
-            message_indicators = ["sent", "message", today, "pm", "am"]
-            matches = sum(1 for ind in message_indicators if ind.lower() in recent_text.lower())
-            if matches >= 2:
-                print(f"    Recent activity indicators found ({matches}/5).")
-                return True
+            # Look for timestamp elements in the chat
+            timestamp_selectors = [
+                "[class*='timestamp']",
+                "[class*='time']",
+                "[class*='date']",
+                "time",
+            ]
+            for sel in timestamp_selectors:
+                els = self.page.locator(sel)
+                count = await els.count()
+                for i in range(min(count, 20)):
+                    try:
+                        txt = await els.nth(i).inner_text()
+                        txt = txt.strip()
+                        # TikTok shows "Today", relative times like "2:30 PM", or dates
+                        if "today" in txt.lower():
+                            print(f"    [~] Found 'Today' timestamp in chat.")
+                            return True
+                        if today in txt or today_alt in txt:
+                            print(f"    [~] Found today's date in chat timestamp.")
+                            return True
+                        # Match time-only strings (e.g. "2:30 PM") — only if within today
+                        if re.match(r'^\d{1,2}:\d{2}\s*(AM|PM)?$', txt, re.IGNORECASE):
+                            # A raw time like "2:30 PM" means it was sent today
+                            print(f"    [~] Found today's time-only timestamp: {txt}")
+                            return True
+                    except Exception:
+                        continue
+
             print(f"    No clear today activity detected.")
             return False
         except Exception as e:
@@ -325,19 +413,34 @@ class TikTokStreakBot:
         msg_a = custom_a if custom_a and mode_a == "custom" else (random.choice(msgs_a) if msgs_a else "\U0001f525")
         msg_b = custom_b if custom_b and mode_b == "custom" else (random.choice(msgs_b) if msgs_b else "\U0001f525")
 
+        # FIX: Only reset today's status if the date has changed — preserve manual marks
         today = datetime.datetime.now().strftime("%Y-%m-%d")
-        self.status["today"]["date"] = today
-        self.status["today"]["user_a_sent"] = False
-        self.status["today"]["user_b_sent"] = False
-        self.status["today"]["bot_intervened"] = False
-        self.status["today"]["bot_action"] = "none"
+        if self.status.get("today", {}).get("date") != today:
+            print(f"  [~] New day detected, resetting today's status.")
+            self.status["today"] = {
+                "date": today,
+                "user_a_sent": False,
+                "user_b_sent": False,
+                "bot_intervened": False,
+                "bot_action": "none",
+            }
+        else:
+            # Same day — keep existing sent flags (don't wipe manual marks)
+            self.status["today"].setdefault("user_a_sent", False)
+            self.status["today"].setdefault("user_b_sent", False)
+            self.status["today"].setdefault("bot_intervened", False)
+            self.status["today"].setdefault("bot_action", "none")
+            print(f"  [~] Same day run. Preserving existing status: a_sent={self.status['today']['user_a_sent']}, b_sent={self.status['today']['user_b_sent']}")
 
         if enabled_a:
             print(f"\n{'='*50}")
             print(f"[Account A: {creds_a['username']}]")
+            # Pass the current known status so the bot doesn't re-send if already marked
+            already_a = self.status["today"]["user_a_sent"]
             result_a = await self.check_and_send_message(
                 creds_a["username"], creds_a["password"],
-                friend_a, msg_a
+                friend_a, msg_a,
+                already_sent_in_status=already_a
             )
             results["user_a"] = result_a
             if result_a["action"] == "sent":
@@ -356,9 +459,11 @@ class TikTokStreakBot:
             await self._init_browser()
             print(f"\n{'='*50}")
             print(f"[Account B: {creds_b['username']}]")
+            already_b = self.status["today"]["user_b_sent"]
             result_b = await self.check_and_send_message(
                 creds_b["username"], creds_b["password"],
-                friend_b, msg_b
+                friend_b, msg_b,
+                already_sent_in_status=already_b
             )
             results["user_b"] = result_b
             if result_b["action"] == "sent":
@@ -372,9 +477,9 @@ class TikTokStreakBot:
             results["user_b"] = {"action": "disabled"}
 
         both_sent = self.status["today"]["user_a_sent"] and self.status["today"]["user_b_sent"]
-        if both_sent and not self.status["today"]["bot_intervened"]:
+        if both_sent:
             if datetime.datetime.now().strftime("%Y-%m-%d") != self.status.get("last_update", "")[:10]:
-                self.status["streak_count"] += 1
+                self.status["streak_count"] = self.status.get("streak_count", 0) + 1
 
         self.status["last_update"] = datetime.datetime.now().isoformat()
         self._save_json(self.status, self.status_path)

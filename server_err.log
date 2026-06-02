@@ -1,0 +1,37 @@
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.6:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 201-502-187
+ * Detected change in 'E:\\contant\\program\\tik tok\\streak_bot.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 201-502-187
+ * Detected change in 'E:\\contant\\program\\tik tok\\server.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 201-502-187
+127.0.0.1 - - [02/Jun/2026 16:59:47] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [02/Jun/2026 16:59:54] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:00:00] "POST /login HTTP/1.1" 302 -
+127.0.0.1 - - [02/Jun/2026 17:00:00] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:00:08] "POST /login HTTP/1.1" 302 -
+127.0.0.1 - - [02/Jun/2026 17:00:08] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:00:17] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:00:23] "GET /api/status HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:00:30] "GET /api/status HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:01:19] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [02/Jun/2026 17:01:19] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:01:20] "GET /favicon.ico HTTP/1.1" 404 -
+ * Detected change in 'E:\\contant\\program\\tik tok\\start_tunnel.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 201-502-187
+127.0.0.1 - - [02/Jun/2026 17:08:27] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:09:27] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [02/Jun/2026 17:09:27] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:09:33] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jun/2026 17:09:44] "GET /login HTTP/1.1" 200 -

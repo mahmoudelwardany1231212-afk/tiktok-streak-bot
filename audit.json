@@ -1,0 +1,30 @@
+[
+  {
+    "timestamp": "2026-06-02 17:00:00",
+    "action": "login_attempt",
+    "username": "_drwardany",
+    "ip": "127.0.0.1",
+    "details": ""
+  },
+  {
+    "timestamp": "2026-06-02 17:00:00",
+    "action": "login_success",
+    "username": "_drwardany",
+    "ip": "127.0.0.1",
+    "details": ""
+  },
+  {
+    "timestamp": "2026-06-02 17:00:08",
+    "action": "login_attempt",
+    "username": "_drwardany",
+    "ip": "127.0.0.1",
+    "details": ""
+  },
+  {
+    "timestamp": "2026-06-02 17:00:08",
+    "action": "login_success",
+    "username": "_drwardany",
+    "ip": "127.0.0.1",
+    "details": ""
+  }
+]
