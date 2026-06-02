@@ -1,0 +1,25 @@
+{
+  "accounts": {
+    "user_a": {
+      "tiktok_username": "",
+      "dashboard_password": "",
+      "bot_enabled": true,
+      "messages_pool": ["🔥", "❤️", "ستريك 🔥", "💪", "✅"],
+      "send_mode": "random",
+      "custom_message": "",
+      "friend_username": ""
+    },
+    "user_b": {
+      "tiktok_username": "",
+      "dashboard_password": "",
+      "bot_enabled": true,
+      "messages_pool": ["🌟", "🔥", "💯", "عاش يا صاحبي", "✅"],
+      "send_mode": "random",
+      "custom_message": "",
+      "friend_username": ""
+    }
+  },
+  "run_time": "23:45",
+  "timezone": "Africa/Cairo",
+  "dashboard_port": 5000
+}
