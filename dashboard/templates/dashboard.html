@@ -121,8 +121,15 @@
                     <div class="today-grid">
                         {% set my_key = account_key + '_sent' %}
                         {% set partner_key = ('user_b' if account_key == 'user_a' else 'user_a') + '_sent' %}
-                        <div class="status-item"><div class="emoji">👤</div><div class="name">Your Message</div><div class="status {% if today.get(my_key) %}status-done{% else %}status-pending{% endif %}">{{ 'Sent' if today.get(my_key) else 'Not yet' }}</div></div>
-                        <div class="status-item"><div class="emoji">👥</div><div class="name">{{ partner.get('tiktok_username', 'Partner') }}</div><div class="status {% if today.get(partner_key) %}status-done{% else %}status-pending{% endif %}">{{ 'Replied' if today.get(partner_key) else 'Waiting' }}</div></div>
+                        <div class="status-item">
+                            <div class="emoji">👤</div>
+                            <div class="name">Your Message</div>
+                            <div class="status {% if today.get(my_key) %}status-done{% else %}status-pending{% endif %}" id="myStatus">{{ 'Sent ✓' if today.get(my_key) else 'Not yet' }}</div>
+                            {% if not today.get(my_key) %}
+                            <button class="btn btn-secondary btn-sm" style="margin-top:8px; font-size:11px; padding:4px 10px;" onclick="markSent()" id="markSentBtn">I sent today ✓</button>
+                            {% endif %}
+                        </div>
+                        <div class="status-item"><div class="emoji">👥</div><div class="name">{{ partner.get('tiktok_username', 'Partner') }}</div><div class="status {% if today.get(partner_key) %}status-done{% else %}status-pending{% endif %}">{{ 'Sent ✓' if today.get(partner_key) else 'Waiting' }}</div></div>
                     </div>
                     {% if today.get('bot_intervened') %}<div style="margin-top:10px; text-align:center; color:#888; font-size:12px;">🤖 Bot acted: {{ 'Sent on your behalf' if today.get('bot_action') == 'sent_from_a' else 'Sent for your partner' if today.get('bot_action') == 'sent_from_b' else 'Sent for both' if today.get('bot_action') == 'sent_from_both' else today.get('bot_action') }}</div>{% endif %}
                 </div>
@@ -146,6 +153,14 @@
                     <div class="section" id="customMsgSection" style="{% if account.get('send_mode') != 'custom' %}display:none{% endif %}"><label>Custom Message</label><input type="text" id="customMessage" value="{{ account.get('custom_message', '') }}" placeholder="Type your message" onchange="updateConfig()"></div>
                 </div>
                 <div class="section" id="poolSection" style="{% if account.get('send_mode') == 'custom' %}display:none{% endif %}"><label>Message Pool</label><div class="messages-pool" id="messagesPool">{% for msg in account.get('messages_pool', []) %}<div class="msg-tag">{{ msg }} <span class="remove" onclick="removeMsg('{{ msg|replace("'","\\'") }}')">x</span></div>{% endfor %}</div><div class="add-msg-row"><input type="text" id="newMessage" placeholder="New message" onkeydown="if(event.key==='Enter')addMsg()"><button class="btn btn-secondary btn-sm" onclick="addMsg()">+ Add</button></div></div>
+                <div class="section" style="margin-top:14px; padding-top:14px; border-top:1px solid #1a1a1a;">
+                    <label>Test Send</label>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="testMessage" placeholder="Message to send (leave blank = use pool/custom)" style="flex:1; min-width:160px;">
+                        <button class="btn btn-primary btn-sm" onclick="sendTestMessage()" id="testSendBtn">📤 Send Test</button>
+                    </div>
+                    <div id="testResult" style="margin-top:6px; font-size:12px; color:#888;"></div>
+                </div>
             </div>
         </div>
         <div id="settings-tab" class="tab-content">
@@ -182,8 +197,60 @@
         async function removeMsg(msg) { try { const r = await fetch('/api/status'); const data = await r.json(); let msgs = data.account.messages_pool || []; msgs = msgs.filter(m => m !== msg); const r2 = await fetch('/api/update_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ messages_pool: msgs }) }); if ((await r2.json()).success) { const pool = document.getElementById('messagesPool'); for (const tag of pool.children) { if (tag.textContent.replace('x','').trim() === msg) { tag.remove(); break; } } toast('Removed'); } } catch(e) { toast(e.message, 'error'); } }
         async function saveSettings() { const res = document.getElementById('settingsResult'); const data = {}; const tkPw = document.getElementById('settingsTikTokPassword').value.trim(); const friend = document.getElementById('settingsFriend').value.trim(); if (tkPw) data.tiktok_password = tkPw; if (friend) data.friend_username = friend; if (!tkPw && !friend) { res.innerHTML = 'Nothing changed'; return; } try { const r = await fetch('/api/update_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }); const d = await r.json(); if (d.success) { if (d.password_changed) { toast('Password changed! Redirecting...'); setTimeout(() => { window.location.href = '/logout'; }, 1500); } else { res.innerHTML = 'Settings saved'; toast('Settings updated'); } document.getElementById('settingsTikTokPassword').value = ''; } else { res.innerHTML = d.error || 'Error'; } } catch(e) { res.innerHTML = e.message; } }
         async function loadAudit() { try { const r = await fetch('/api/audit'); const d = await r.json(); const container = document.getElementById('auditContainer'); if (!d.entries || d.entries.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color:#888; font-size:13px;">No activity recorded yet.</div>'; return; } let html = '<table class="audit-table"><thead><tr><th>Time</th><th>Action</th><th>IP</th><th>Details</th></tr></thead><tbody>'; for (const e of d.entries) { const cls = e.action === 'login_success' ? 'audit-success' : e.action === 'login_failure' ? 'audit-failure' : e.action === 'account_locked' || e.action === 'rate_limited' ? 'audit-locked' : e.action === 'password_changed' ? 'audit-action' : 'audit-attempt'; html += `<tr><td>${e.timestamp}</td><td class="${cls}">${e.action}</td><td>${e.ip}</td><td>${e.details || ''}</td></tr>`; } html += '</tbody></table>'; container.innerHTML = html; } catch(e) { document.getElementById('auditContainer').innerHTML = '<div style="text-align:center; padding:20px; color:#ff4444; font-size:13px;">Failed to load activity log.</div>'; } }
+        async function sendTestMessage() {
+            const btn = document.getElementById('testSendBtn');
+            const res = document.getElementById('testResult');
+            const msg = document.getElementById('testMessage').value.trim();
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Sending...';
+            res.innerHTML = '';
+            try {
+                const r = await fetch('/api/send_test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ message: msg })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    res.innerHTML = '✅ ' + d.message;
+                    toast('Test message sent!');
+                } else {
+                    res.innerHTML = '❌ ' + (d.error || 'Failed');
+                    toast(d.error || 'Error', 'error');
+                }
+            } catch(e) {
+                res.innerHTML = '❌ ' + e.message;
+                toast('Failed', 'error');
+            }
+            btn.disabled = false;
+            btn.innerHTML = '📤 Send Test';
+        }
+        async function markSent() {
+            const btn = document.getElementById('markSentBtn');
+            if (!btn) return;
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                const r = await fetch('/api/mark_sent', { method: 'POST' });
+                const d = await r.json();
+                if (d.success) {
+                    const myStatus = document.getElementById('myStatus');
+                    if (myStatus) { myStatus.textContent = 'Sent ✓'; myStatus.className = 'status status-done'; }
+                    btn.remove();
+                    toast('Marked as sent!');
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'I sent today ✓';
+                    toast(d.error || 'Error', 'error');
+                }
+            } catch(e) {
+                btn.disabled = false;
+                btn.textContent = 'I sent today ✓';
+                toast('Failed', 'error');
+            }
+        }
         document.querySelector('.tab[onclick*="security-tab"]').addEventListener('click', function() { setTimeout(loadAudit, 100); });
-        setInterval(async () => { try { const r = await fetch('/api/status'); if (r.ok) window.location.reload(); } catch(e) {} }, 60000);
+        setInterval(async () => { try { const r = await fetch('/api/status'); const d = await r.json(); const today = d.status && d.status.today; if (today) { const partnerKey = '{{ "user_b_sent" if account_key == "user_a" else "user_a_sent" }}'; const pEl = document.querySelectorAll('.status-item')[1].querySelector('.status'); if (pEl) { pEl.textContent = today[partnerKey] ? 'Sent ✓' : 'Waiting'; pEl.className = 'status ' + (today[partnerKey] ? 'status-done' : 'status-pending'); } } } catch(e) {} }, 30000);
     </script>
 </body>
 </html>
