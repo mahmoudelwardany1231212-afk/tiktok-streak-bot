@@ -16,18 +16,19 @@
       "friend_username": "yassen_67i"
     },
     "user_b": {
-      "tiktok_username": "",
+      "tiktok_username": "yassen_67i",
+      "dashboard_password_hash": "scrypt:32768:8:1$ytxfZsvfHeOJwxF3$afa8654b58a72f5fa72903f855b29db8d3c03459b7a112db78f4f7dd0bc734e59299b7e1dbb75b485f0468d86e065cadc4a10628eaa0993cc59156b8e492fa52",
       "bot_enabled": true,
       "messages_pool": [
-        "🌟",
         "🔥",
-        "💯",
-        "عاش يا صاحبي",
+        "❤️",
+        "ستريك 🔥",
+        "💪",
         "✅"
       ],
       "send_mode": "random",
       "custom_message": "",
-      "friend_username": ""
+      "friend_username": "_drwardany"
     }
   },
   "run_time": "23:45",
