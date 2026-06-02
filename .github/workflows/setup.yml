@@ -52,75 +52,75 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python -c "
-import os, json, base64, secrets as rng
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from github import Github
+          import os, json, base64, secrets as rng
+          from cryptography.fernet import Fernet
+          from cryptography.hazmat.primitives import hashes
+          from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+          from github import Github
 
-enc_pw = os.environ['ENCRYPTION_PASSWORD']
-token = os.environ['GH_TOKEN']
+          enc_pw = os.environ['ENCRYPTION_PASSWORD']
+          token = os.environ['GH_TOKEN']
 
-def encrypt(text, password):
-    salt = rng.token_bytes(16)
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=1000000)
-    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-    f = Fernet(key)
-    token_bytes = f.encrypt(text.encode())
-    return base64.b64encode(salt + token_bytes).decode()
+          def encrypt(text, password):
+              salt = rng.token_bytes(16)
+              kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=1000000)
+              key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+              f = Fernet(key)
+              token_bytes = f.encrypt(text.encode())
+              return base64.b64encode(salt + token_bytes).decode()
 
-a_data = json.dumps({'username': '${{ inputs.a_username }}', 'password': '${{ inputs.a_password }}'})
-b_data = json.dumps({'username': '${{ inputs.b_username }}', 'password': '${{ inputs.b_password }}'})
+          a_data = json.dumps({'username': '${{ inputs.a_username }}', 'password': '${{ inputs.a_password }}'})
+          b_data = json.dumps({'username': '${{ inputs.b_username }}', 'password': '${{ inputs.b_password }}'})
 
-a_enc = encrypt(a_data, enc_pw)
-b_enc = encrypt(b_data, enc_pw)
+          a_enc = encrypt(a_data, enc_pw)
+          b_enc = encrypt(b_data, enc_pw)
 
-g = Github(token)
-repo = g.get_repo('${{ github.repository }}')
-repo.create_secret('USER_A_CREDS', a_enc)
-repo.create_secret('USER_B_CREDS', b_enc)
-print('Credentials encrypted and saved as GitHub Secrets!')
-"
+          g = Github(token)
+          repo = g.get_repo('${{ github.repository }}')
+          repo.create_secret('USER_A_CREDS', a_enc)
+          repo.create_secret('USER_B_CREDS', b_enc)
+          print('Credentials encrypted and saved as GitHub Secrets!')
+          "
 
       - name: Update config.json
         run: |
           python -c "
-import json
-from werkzeug.security import generate_password_hash
+          import json
+          from werkzeug.security import generate_password_hash
 
-config = {'accounts': {}}
+          config = {'accounts': {}}
 
-a = {
-    'tiktok_username': '${{ inputs.a_username }}',
-    'bot_enabled': True,
-    'messages_pool': ['🔥', '❤️', 'ستريك 🔥', '💪', '✅'],
-    'send_mode': 'random',
-    'custom_message': '',
-    'friend_username': '${{ inputs.a_friend }}'
-}
-b = {
-    'tiktok_username': '${{ inputs.b_username }}',
-    'bot_enabled': True,
-    'messages_pool': ['🌟', '🔥', '💯', 'عاش يا صاحبي', '✅'],
-    'send_mode': 'random',
-    'custom_message': '',
-    'friend_username': '${{ inputs.b_friend }}'
-}
+          a = {
+              'tiktok_username': '${{ inputs.a_username }}',
+              'bot_enabled': True,
+              'messages_pool': ['\U0001f525', '\u2764\ufe0f', '\u0633\u062a\u0631\u064a\u0643 \U0001f525', '\U0001f4aa', '\u2705'],
+              'send_mode': 'random',
+              'custom_message': '',
+              'friend_username': '${{ inputs.a_friend }}'
+          }
+          b = {
+              'tiktok_username': '${{ inputs.b_username }}',
+              'bot_enabled': True,
+              'messages_pool': ['\U0001f31f', '\U0001f525', '\U0001f4af', '\u0639\u0627\u0634 \u064a\u0627 \u0635\u0627\u062d\u0628\u064a', '\u2705'],
+              'send_mode': 'random',
+              'custom_message': '',
+              'friend_username': '${{ inputs.b_friend }}'
+          }
 
-pw_a = '${{ inputs.a_dash_pw }}'
-pw_b = '${{ inputs.b_dash_pw }}'
-if pw_a:
-    a['dashboard_password_hash'] = generate_password_hash(pw_a)
-if pw_b:
-    b['dashboard_password_hash'] = generate_password_hash(pw_b)
+          pw_a = '${{ inputs.a_dash_pw }}'
+          pw_b = '${{ inputs.b_dash_pw }}'
+          if pw_a:
+              a['dashboard_password_hash'] = generate_password_hash(pw_a)
+          if pw_b:
+              b['dashboard_password_hash'] = generate_password_hash(pw_b)
 
-config['accounts']['user_a'] = a
-config['accounts']['user_b'] = b
+          config['accounts']['user_a'] = a
+          config['accounts']['user_b'] = b
 
-with open('config.json', 'w') as f:
-    json.dump(config, f, indent=2, ensure_ascii=False)
-print('config.json updated!')
-"
+          with open('config.json', 'w') as f:
+              json.dump(config, f, indent=2, ensure_ascii=False)
+          print('config.json updated!')
+          "
         env:
           PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
