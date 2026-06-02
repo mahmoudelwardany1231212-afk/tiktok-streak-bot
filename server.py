@@ -169,24 +169,6 @@ def accounts_configured(config):
     return bool(a.get("tiktok_username") and b.get("tiktok_username"))
 
 
-def secrets_configured():
-    """Check if GitHub Secrets exist by trying to read a status that depends on them."""
-    if not USE_GITHUB:
-        return Path("accounts/user_a.enc").exists()
-    for key in ["user_a", "user_b"]:
-        try:
-            repo = _get_github()
-            if repo:
-                secret_name = f"{key.upper()}_CREDS"
-                try:
-                    repo.get_secret(secret_name)
-                except Exception:
-                    return False
-        except Exception:
-            return False
-    return True
-
-
 # ============================================================
 # Auth
 # ============================================================
@@ -215,75 +197,114 @@ def index():
 @app.route("/setup", methods=["GET", "POST"])
 def setup():
     config = read_config()
-    if accounts_configured(config) and "logged_in" not in flask_session:
-        return redirect(url_for("login_page"))
+    accts = config.get("accounts", {})
+    a = accts.get("user_a", {})
+    b = accts.get("user_b", {})
+
+    # Detect which account is missing
+    missing_a = not a.get("tiktok_username")
+    missing_b = not b.get("tiktok_username")
+
+    # If both exist, redirect
+    if not missing_a and not missing_b:
+        if "logged_in" not in flask_session:
+            return redirect(url_for("login_page"))
+        return redirect(url_for("dashboard"))
 
     if request.method == "POST":
-        a_username = request.form.get("a_username", "").strip()
-        a_password = request.form.get("a_password", "").strip()
-        a_dash_pw = request.form.get("a_dash_pw", "").strip()
-        a_friend = request.form.get("a_friend", "").strip()
-
-        b_username = request.form.get("b_username", "").strip()
-        b_password = request.form.get("b_password", "").strip()
-        b_dash_pw = request.form.get("b_dash_pw", "").strip()
-        b_friend = request.form.get("b_friend", "").strip()
+        tiktok_username = request.form.get("tiktok_username", "").strip()
+        tiktok_password = request.form.get("tiktok_password", "").strip()
+        friend_username = request.form.get("friend_username", "").strip()
 
         errors = []
-        if not a_username or not a_password or not a_dash_pw or not a_friend:
-            errors.append("All Account A fields are required")
-        if not b_username or not b_password or not b_dash_pw or not b_friend:
-            errors.append("All Account B fields are required")
-        if a_friend != b_username:
-            errors.append("Account A's friend should be Account B's username")
-        if b_friend != a_username:
-            errors.append("Account B's friend should be Account A's username")
+        if not tiktok_username:
+            errors.append("TikTok Username is required")
+        if not tiktok_password:
+            errors.append("TikTok Password is required")
+        if not friend_username:
+            errors.append("Friend's TikTok Username is required")
+
+        # Determine account key
+        if missing_a and missing_b:
+            account_key = "user_a"
+        elif missing_a:
+            account_key = "user_a"
+        else:
+            account_key = "user_b"
+
+        # Validate friend match (only on second setup)
+        if account_key == "user_b":
+            other = accts.get("user_a", {})
+            if other.get("tiktok_username") != friend_username:
+                errors.append(f"Friend's username should be {other.get('tiktok_username')} (the first account)")
+            if other.get("friend_username") != tiktok_username:
+                errors.append(f"The first account set their friend as {other.get('friend_username')}, not {tiktok_username}")
+        elif account_key == "user_a" and not missing_b:
+            # user_a is missing but user_b exists (edge case — user_a was deleted)
+            other = accts.get("user_b", {})
+            if other.get("tiktok_username") != friend_username:
+                errors.append(f"Friend's username should be {other.get('tiktok_username')} (the existing account)")
+            if other.get("friend_username") != tiktok_username:
+                errors.append(f"The existing account set their friend as {other.get('friend_username')}, not {tiktok_username}")
 
         if errors:
             for e in errors:
                 flash(e, "danger")
-            return render_template("setup.html", error=True)
+            return render_template("setup.html", error=True,
+                                   missing_a=missing_a, missing_b=missing_b,
+                                   account_key=account_key,
+                                   a_username=a.get("tiktok_username", ""),
+                                   b_username=b.get("tiktok_username", ""))
 
         if not ENCRYPTION_PASSWORD:
             flash("ENCRYPTION_PASSWORD not configured on server.", "danger")
-            return render_template("setup.html", error=True)
+            return render_template("setup.html", error=True,
+                                   missing_a=missing_a, missing_b=missing_b,
+                                   account_key=account_key,
+                                   a_username=a.get("tiktok_username", ""),
+                                   b_username=b.get("tiktok_username", ""))
 
         try:
-            # Store TikTok credentials as GitHub Secrets (encrypted)
-            save_credential_to_secret("user_a", a_username, a_password)
-            save_credential_to_secret("user_b", b_username, b_password)
+            # Store TikTok credentials as GitHub Secret (encrypted)
+            save_credential_to_secret(account_key, tiktok_username, tiktok_password)
 
             # config.json stores only non-sensitive data
-            config["accounts"]["user_a"] = {
-                "tiktok_username": a_username,
-                "dashboard_password_hash": generate_password_hash(a_dash_pw),
+            config["accounts"][account_key] = {
+                "tiktok_username": tiktok_username,
+                "dashboard_password_hash": generate_password_hash(tiktok_password),
                 "bot_enabled": True,
-                "messages_pool": ["\U0001f525", "\u2764\ufe0f", "\u0633\u062a\u0631\u064a\u0643 \U0001f525", "\U0001f4aa", "\u2705"],
+                "messages_pool": ["🔥", "❤️", "ستريك 🔥", "💪", "✅"],
                 "send_mode": "random",
                 "custom_message": "",
-                "friend_username": a_friend,
-            }
-            config["accounts"]["user_b"] = {
-                "tiktok_username": b_username,
-                "dashboard_password_hash": generate_password_hash(b_dash_pw),
-                "bot_enabled": True,
-                "messages_pool": ["\U0001f31f", "\U0001f525", "\U0001f4af", "\u0639\u0627\u0634 \u064a\u0627 \u0635\u0627\u062d\u0628\u064a", "\u2705"],
-                "send_mode": "random",
-                "custom_message": "",
-                "friend_username": b_friend,
+                "friend_username": friend_username,
             }
             write_config(config)
 
             cleanup_legacy_enc_files()
 
-            flash("Accounts configured! TikTok passwords encrypted and stored as GitHub Secrets.", "success")
+            account_label = "Account 1" if account_key == "user_a" else "Account 2"
+            flash(f"{account_label} configured! TikTok password encrypted and stored as GitHub Secret.", "success")
+
+            # If the other account is still missing, show setup again for the next user
+            config = read_config()
+            recheck_a = not config.get("accounts", {}).get("user_a", {}).get("tiktok_username")
+            recheck_b = not config.get("accounts", {}).get("user_b", {}).get("tiktok_username")
+            if recheck_a or recheck_b:
+                return redirect(url_for("setup"))
             return redirect(url_for("login_page"))
 
         except Exception as e:
             flash(f"Error: {e}", "danger")
-            return render_template("setup.html", error=True)
+            return render_template("setup.html", error=True,
+                                   missing_a=missing_a, missing_b=missing_b,
+                                   account_key=account_key,
+                                   a_username=a.get("tiktok_username", ""),
+                                   b_username=b.get("tiktok_username", ""))
 
-    return render_template("setup.html", error=False)
+    return render_template("setup.html", error=False,
+                           missing_a=missing_a, missing_b=missing_b,
+                           a_username=a.get("tiktok_username", ""),
+                           b_username=b.get("tiktok_username", ""))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -382,14 +403,12 @@ def api_update_config():
         if "friend_username" in data and data["friend_username"].strip():
             account["friend_username"] = data["friend_username"].strip()
 
-        # Handle password changes — store as GitHub Secrets, never in repo files
+        # Handle TikTok password change — update both the GitHub Secret and the dash hash
         if "tiktok_password" in data and data["tiktok_password"].strip():
             new_pw = data["tiktok_password"].strip()
             username = account.get("tiktok_username", "")
             save_credential_to_secret(account_key, username, new_pw)
-
-        if "dashboard_password" in data and data["dashboard_password"].strip():
-            account["dashboard_password_hash"] = generate_password_hash(data["dashboard_password"].strip())
+            account["dashboard_password_hash"] = generate_password_hash(new_pw)
 
         write_config(config)
         return jsonify({"success": True, "account": {
