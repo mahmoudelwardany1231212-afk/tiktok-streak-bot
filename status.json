@@ -2,11 +2,11 @@
   "streak_count": 140,
   "last_update": "",
   "today": {
-    "user_a_sent": false,
+    "date": "2026-06-02",
+    "user_a_sent": true,
     "user_b_sent": false,
     "bot_intervened": false,
-    "bot_action": "none",
-    "date": ""
+    "bot_action": "none"
   },
   "history": []
 }
