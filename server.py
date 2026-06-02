@@ -264,14 +264,12 @@ def save_credential_to_secret(account_key, tiktok_username, tiktok_password):
         {"username": tiktok_username, "password": tiktok_password},
         ENCRYPTION_PASSWORD
     )
-    secret_name = f"{account_key.upper()}_CREDS"
-    if USE_GITHUB:
-        ok = _set_repo_secret(secret_name, encrypted)
-        if ok:
-            _delete_repo_file(f"accounts/{account_key}.enc")
-            return True
+    # Always save locally so the bot can run even without env vars
     _write_local(Path("accounts") / f"{account_key}.enc", encrypted)
-    return False
+    # Also save to GitHub Secrets if possible
+    if USE_GITHUB:
+        _set_repo_secret(f"{account_key.upper()}_CREDS", encrypted)
+    return True
 
 
 def cleanup_legacy_enc_files():
@@ -595,7 +593,7 @@ def api_trigger_bot():
     def run():
         try:
             bot = TikTokStreakBot()
-            asyncio.run(bot.run_smart(use_env=False))
+            asyncio.run(bot.run_smart(use_env=True))
         except Exception as e:
             print(f"Bot failed: {e}")
     threading.Thread(target=run, daemon=True).start()
@@ -612,7 +610,7 @@ def api_run_bot_local():
         def run_bot_thread():
             try:
                 bot = TikTokStreakBot()
-                asyncio.run(bot.run_smart(use_env=False))
+                asyncio.run(bot.run_smart(use_env=True))
             except Exception as e:
                 print(f"Bot run error: {e}")
 
@@ -641,7 +639,7 @@ def run_bot_scheduled():
         print(f"[Scheduler] Running bot at {datetime.now()}")
         try:
             bot = TikTokStreakBot()
-            asyncio.run(bot.run_smart(use_env=False))
+            asyncio.run(bot.run_smart(use_env=True))
             print(f"[Scheduler] Bot finished successfully")
         except Exception as e:
             print(f"[Scheduler] Bot failed: {e}")

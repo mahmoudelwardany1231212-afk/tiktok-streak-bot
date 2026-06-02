@@ -119,8 +119,10 @@
                 <div class="card">
                     <div class="card-title">Today's Status</div>
                     <div class="today-grid">
-                        <div class="status-item"><div class="emoji">👤</div><div class="name">Your Message</div><div class="status {% if today.get('user_a_sent') %}status-done{% else %}status-pending{% endif %}">{{ 'Sent' if today.get('user_a_sent') else 'Not yet' }}</div></div>
-                        <div class="status-item"><div class="emoji">👥</div><div class="name">{{ partner.get('tiktok_username', 'Partner') }}</div><div class="status {% if today.get('user_b_sent') %}status-done{% else %}status-pending{% endif %}">{{ 'Replied' if today.get('user_b_sent') else 'Waiting' }}</div></div>
+                        {% set my_key = account_key + '_sent' %}
+                        {% set partner_key = ('user_b' if account_key == 'user_a' else 'user_a') + '_sent' %}
+                        <div class="status-item"><div class="emoji">👤</div><div class="name">Your Message</div><div class="status {% if today.get(my_key) %}status-done{% else %}status-pending{% endif %}">{{ 'Sent' if today.get(my_key) else 'Not yet' }}</div></div>
+                        <div class="status-item"><div class="emoji">👥</div><div class="name">{{ partner.get('tiktok_username', 'Partner') }}</div><div class="status {% if today.get(partner_key) %}status-done{% else %}status-pending{% endif %}">{{ 'Replied' if today.get(partner_key) else 'Waiting' }}</div></div>
                     </div>
                     {% if today.get('bot_intervened') %}<div style="margin-top:10px; text-align:center; color:#888; font-size:12px;">🤖 Bot acted: {{ 'Sent on your behalf' if today.get('bot_action') == 'sent_from_a' else 'Sent for your partner' if today.get('bot_action') == 'sent_from_b' else 'Sent for both' if today.get('bot_action') == 'sent_from_both' else today.get('bot_action') }}</div>{% endif %}
                 </div>
