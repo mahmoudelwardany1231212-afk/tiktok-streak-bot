@@ -1,17 +1,30 @@
 {
   "accounts": {
     "user_a": {
-      "tiktok_username": "",
+      "tiktok_username": "_drwardany",
+      "dashboard_password_hash": "scrypt:32768:8:1$BVG2jXg3SWcZZbwR$4aed10b6270c3af4e05e4d1b1433441818d12152d0e49bed57e9b0f609466da6f6d787c85ca14a3cc6be62af9e00ea24c154b43c801290d8436b2856efd60e85",
       "bot_enabled": true,
-      "messages_pool": ["🔥", "❤️", "ستريك 🔥", "💪", "✅"],
+      "messages_pool": [
+        "🔥",
+        "❤️",
+        "ستريك 🔥",
+        "💪",
+        "✅"
+      ],
       "send_mode": "random",
       "custom_message": "",
-      "friend_username": ""
+      "friend_username": "yassen_67i"
     },
     "user_b": {
       "tiktok_username": "",
       "bot_enabled": true,
-      "messages_pool": ["🌟", "🔥", "💯", "عاش يا صاحبي", "✅"],
+      "messages_pool": [
+        "🌟",
+        "🔥",
+        "💯",
+        "عاش يا صاحبي",
+        "✅"
+      ],
       "send_mode": "random",
       "custom_message": "",
       "friend_username": ""
