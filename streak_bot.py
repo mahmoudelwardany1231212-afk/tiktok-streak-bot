@@ -367,7 +367,8 @@ class TikTokStreakBot:
 if __name__ == "__main__":
     import asyncio
     import sys
-    use_env = os.environ.get("USER_A_CREDS") is not None
+    suffix = "_CREDS"
+    use_env = os.environ.get(f"USER_A{suffix}") is not None
     if not use_env and not os.environ.get("ENCRYPTION_PASSWORD"):
         print("ERROR: Set ENCRYPTION_PASSWORD environment variable (or USER_A_CREDS for env mode)")
         sys.exit(1)
